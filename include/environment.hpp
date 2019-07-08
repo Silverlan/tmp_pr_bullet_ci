@@ -52,19 +52,17 @@ namespace pragma::physics
 		virtual util::TSharedHandle<IController> CreateCapsuleController(float halfWidth,float halfHeight,float stepHeight,float slopeLimitDeg=DEFAULT_CHARACTER_SLOPE_LIMIT,const Transform &startTransform={}) override;
 		virtual util::TSharedHandle<IController> CreateBoxController(const Vector3 &halfExtents,float stepHeight,float slopeLimitDeg=DEFAULT_CHARACTER_SLOPE_LIMIT,const Transform &startTransform={}) override;
 		virtual util::TSharedHandle<ICollisionObject> CreateCollisionObject(IShape &shape) override;
-		virtual util::TSharedHandle<IRigidBody> CreateRigidBody(float mass,IShape &shape,const Vector3 &localInertia) override;
+		virtual util::TSharedHandle<IRigidBody> CreateRigidBody(float mass,IShape &shape,const Vector3 &localInertia,bool dynamic=true) override;
 		virtual util::TSharedHandle<ISoftBody> CreateSoftBody(const PhysSoftBodyInfo &info,float mass,const std::vector<Vector3> &verts,const std::vector<uint16_t> &indices,std::vector<uint16_t> &indexTranslations) override;
 		virtual util::TSharedHandle<IGhostObject> CreateGhostObject(IShape &shape) override;
 
 		virtual std::shared_ptr<IConvexShape> CreateCapsuleShape(float halfWidth,float halfHeight,const IMaterial &mat) override;
 		virtual std::shared_ptr<IConvexShape> CreateBoxShape(const Vector3 &halfExtents,const IMaterial &mat) override;
 		virtual std::shared_ptr<IConvexShape> CreateCylinderShape(float radius,float height,const IMaterial &mat) override;
-		virtual std::shared_ptr<ICompoundShape> CreateTorusShape(uint32_t subdivisions,double outerRadius,double innerRadius,const IMaterial &mat) override;
+		std::shared_ptr<ICompoundShape> CreateTorusShape(uint32_t subdivisions,double outerRadius,double innerRadius,const IMaterial &mat);
 		virtual std::shared_ptr<IConvexShape> CreateSphereShape(float radius,const IMaterial &mat) override;
 		virtual std::shared_ptr<IConvexHullShape> CreateConvexHullShape(const IMaterial &mat) override;
 		virtual std::shared_ptr<ITriangleShape> CreateTriangleShape(const IMaterial &mat) override;
-		virtual std::shared_ptr<ICompoundShape> CreateCompoundShape() override;
-		virtual std::shared_ptr<ICompoundShape> CreateCompoundShape(IShape &shape) override;
 		virtual std::shared_ptr<ICompoundShape> CreateCompoundShape(std::vector<IShape*> &shapes) override;
 		virtual std::shared_ptr<IShape> CreateHeightfieldTerrainShape(uint32_t width,uint32_t length,Scalar maxHeight,uint32_t upAxis,const IMaterial &mat) override;
 		virtual std::shared_ptr<IMaterial> CreateMaterial(float staticFriction,float dynamicFriction,float restitution) override;
@@ -73,7 +71,7 @@ namespace pragma::physics
 
 		virtual Bool Overlap(const TraceData &data,std::vector<TraceResult> *results=nullptr) const override;
 		virtual Bool RayCast(const TraceData &data,std::vector<TraceResult> *results=nullptr) const override;
-		virtual Bool Sweep(const TraceData &data,TraceResult *result=nullptr) const override;
+		virtual Bool Sweep(const TraceData &data,std::vector<TraceResult> *results=nullptr) const override;
 
 		virtual void RemoveConstraint(IConstraint &constraint) override;
 		virtual void RemoveCollisionObject(ICollisionObject &obj) override;

@@ -5,8 +5,8 @@
 #include "kinematic_character_controller.hpp"
 
 #pragma optimize("",off)
-pragma::physics::BtController::BtController(IEnvironment &env,IGhostObject &ghostObject,IConvexShape &shape,std::unique_ptr<PhysKinematicCharacterController> controller)
-	: IController{env,ghostObject,shape},m_controller{std::move(controller)}
+pragma::physics::BtController::BtController(IEnvironment &env,const util::TSharedHandle<IGhostObject> &ghostObject,std::unique_ptr<PhysKinematicCharacterController> controller)
+	: IController{env,util::shared_handle_cast<IGhostObject,ICollisionObject>(ghostObject)},m_controller{std::move(controller)}
 {}
 pragma::physics::BtEnvironment &pragma::physics::BtController::GetBtEnv() const {return static_cast<BtEnvironment&>(m_physEnv);}
 Vector3 pragma::physics::BtController::GetDimensions() const
@@ -26,18 +26,62 @@ void pragma::physics::BtController::SetDimensions(const Vector3 &dimensions)
 	auto &btShape = static_cast<btConvexInternalShape&>(dynamic_cast<BtConvexShape&>(*shape).GetBtShape());
 	btShape.setImplicitShapeDimensions(btVector3(dimensions.x,dimensions.y,dimensions.z) *BtEnvironment::WORLD_SCALE);
 	auto *world = GetBtEnv().GetWorld();
-	world->getBroadphase()->getOverlappingPairCache()->cleanProxyFromPairs(dynamic_cast<BtGhostObject*>(GetGhostObject())->GetInternalObject().getBroadphaseHandle(),world->getDispatcher());
+	world->getBroadphase()->getOverlappingPairCache()->cleanProxyFromPairs(m_controller->getGhostObject()->getBroadphaseHandle(),world->getDispatcher());
+}
+
+void pragma::physics::BtController::SetFootPos(const Vector3 &footPos)
+{
+	Vector3 npos = pos;
+
+	auto rot = ControllerPhysObj::GetOrientation();
+	auto offset = Vector3(0,-m_height *0.5f,0);
+	uvec::rotate(&offset,rot);
+	npos -= offset;
+
+	// Deprecated
+	// npos.y += m_height *0.5f;
+
+	ControllerPhysObj::SetPosition(npos);
+	//ControllerPhysObj::SetPosition(pos);
+
+	BOX CONTROLLER:
+	auto t = m_collisionObject->GetWorldTransform();
+	Vector3 posCur = t.GetOrigin();
+	PhysObj::SetPosition(pos);
+	m_posLast += pos -posCur;
+}
+Vector3 pragma::physics::BtController::GetFootPos() const
+{
+	Vector3 pos = ControllerPhysObj::GetPosition();
+
+	auto rot = ControllerPhysObj::GetOrientation();
+	auto offset = Vector3(0,-m_height *0.5f,0);
+	uvec::rotate(&offset,rot);
+	pos += offset;
+
+	// Deprecated
+	// pos.y -= m_height *0.5f;
+
+	return pos;
+	//return ControllerPhysObj::GetPosition();
+}
+
+void pragma::physics::BtController::Resize(float newHeight)
+{
+	auto dimensions = GetDimensions();
+	dimensions.y = newHeight;
+	SetDimensions(dimensions);
+	// TODO: Update foot position
 }
 
 PhysKinematicCharacterController *pragma::physics::BtController::GetCharacterController() {return m_controller.get();}
 
-void pragma::physics::BtController::SetWalkDirection(Vector3 &disp)
+const pragma::physics::BtConvexShape *pragma::physics::BtController::GetShape() const {return const_cast<BtController*>(this)->GetShape();}
+pragma::physics::BtConvexShape *pragma::physics::BtController::GetShape() {return m_shape.get();}
+
+pragma::physics::IController::CollisionFlags pragma::physics::BtController::DoMove(Vector3 &disp)
 {
 	m_controller->setWalkDirection(btVector3(disp.x,disp.y,disp.z) *BtEnvironment::WORLD_SCALE);
-}
-
-Vector3 pragma::physics::BtController::GetWalkDirection() const
-{
-	return uvec::create(m_controller->getWalkDirection() /BtEnvironment::WORLD_SCALE);
+	return CollisionFlags::None;
 }
 #pragma optimize("",on)

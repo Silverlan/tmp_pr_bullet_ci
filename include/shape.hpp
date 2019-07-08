@@ -21,6 +21,9 @@ namespace pragma::physics
 		virtual void SetTrigger(bool bTrigger) override;
 		virtual bool IsTrigger() const override;
 
+		virtual void SetLocalPose(const Transform &t) override;
+		virtual const Transform &GetLocalPose() const override;
+
 		btCollisionShape &GetBtShape();
 		const btCollisionShape &GetBtShape() const;
 	protected:
@@ -28,6 +31,7 @@ namespace pragma::physics
 	private:
 		BtShape(IEnvironment &env,btCollisionShape *shape,bool bOwns=true);
 		btCollisionShape *m_externalShape;
+		Transform m_localPose = {};
 		bool m_bTrigger = false;
 	};
 	class BtConvexShape
@@ -51,11 +55,12 @@ namespace pragma::physics
 		btConvexHullShape &GetBtConvexHullShape();
 
 		virtual void AddPoint(const Vector3 &point) override;
-		virtual void SetSurfaceMaterial(int id) override;
-		virtual int GetSurfaceMaterial() const override;
+		virtual void AddTriangle(uint32_t idx0,uint32_t idx1,uint32_t idx2) override;
+		virtual void ReservePoints(uint32_t numPoints) override;
+		virtual void ReserveTriangles(uint32_t numTris) override;
+		virtual void Build() override;
 	private:
 		BtConvexHullShape(IEnvironment &env,const std::shared_ptr<btConvexHullShape> &shape);
-		int m_surfaceMaterial;
 	};
 
 	class BtCompoundShape
@@ -65,7 +70,7 @@ namespace pragma::physics
 	public:
 		friend IEnvironment;
 		btCompoundShape &GetBtCompoundShape();
-		virtual void AddShape(pragma::physics::IShape &shape,const Vector3 &origin={},const Quat &rot={}) override;
+		virtual void AddShape(pragma::physics::IShape &shape) override;
 	protected:
 		BtCompoundShape(IEnvironment &env,const std::shared_ptr<btCompoundShape> &btShape,const std::vector<IShape*> &shapes={});
 	};
@@ -95,8 +100,7 @@ namespace pragma::physics
 		btTriangleIndexVertexArray *GetBtIndexVertexArray();
 
 		virtual void Build(const std::vector<SurfaceMaterial> *materials=nullptr) override;
-		virtual void ReserveTriangles(std::size_t count) override;
-		virtual void GenerateInternalEdgeInfo() override;
+		void GenerateInternalEdgeInfo();
 
 		virtual void AddTriangle(const Vector3 &a,const Vector3 &b,const Vector3 &c,const SurfaceMaterial *mat=nullptr) override;
 

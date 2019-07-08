@@ -24,9 +24,9 @@ pragma::physics::BtCollisionObject::BtCollisionObject(IEnvironment &env,std::uni
 	GetInternalObject().setUserPointer(static_cast<ICollisionObject*>(this));
 }
 
-void pragma::physics::BtCollisionObject::Initialize()
+void pragma::physics::BtCollisionObject::Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle)
 {
-	ICollisionObject::Initialize();
+	ICollisionObject::Initialize(l,handle);
 	UpdateCCD();
 }
 btCollisionObject &pragma::physics::BtCollisionObject::GetBtCollisionObject() {return *m_collisionObject;}
@@ -265,12 +265,6 @@ void pragma::physics::BtCollisionObject::SetContactProcessingThreshold(float thr
 
 pragma::physics::BtEnvironment &pragma::physics::BtCollisionObject::GetBtEnv() const {return static_cast<BtEnvironment&>(m_physEnv);}
 btCollisionObject &pragma::physics::BtCollisionObject::GetInternalObject() const {return *m_collisionObject;}
-
-void pragma::physics::BtCollisionObject::DoAddWorldObject()
-{
-	auto *world = GetBtEnv().GetWorld();
-	world->addCollisionObject(m_collisionObject.get(),umath::to_integral(m_collisionFilterGroup),umath::to_integral(m_collisionFilterMask));
-}
 
 void pragma::physics::BtCollisionObject::RemoveWorldObject()
 {

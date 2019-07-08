@@ -341,26 +341,31 @@ std::shared_ptr<pragma::physics::IConvexShape> pragma::physics::BtEnvironment::C
 std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment::CreateTorusShape(uint32_t subdivisions,double outerRadius,double innerRadius,const IMaterial &mat)
 {
 	// Source: http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=7228#p24758
-	auto rshape = CreateCompoundShape();
-
 	btVector3 forward(btScalar(0.0),btScalar(1.0),btScalar(0.0));
 	btVector3 side(btScalar(outerRadius),btScalar(0.0),btScalar(0.0));
 
 	auto gap = sqrt(2.0 *innerRadius *innerRadius -2.0 *innerRadius *innerRadius* cos((2.0 *SIMD_PI) /static_cast<double>(subdivisions)));
-	auto cylShape = CreateSharedPtr<pragma::physics::BtConvexShape>(*this,std::make_shared<btCylinderShapeZ>(
-		btVector3(btScalar(innerRadius),btScalar(innerRadius),btScalar((SIMD_PI /static_cast<double>(subdivisions)) +0.5 *gap))
-	));
 
+	std::vector<std::shared_ptr<pragma::physics::IShape>> ptrShapes {};
+	std::vector<pragma::physics::IShape*> shapes {};
+	shapes.reserve(subdivisions);
+	ptrShapes.reserve(subdivisions);
 	for(auto i=decltype(subdivisions){0};i<subdivisions;++i)
 	{
 		auto angle = btScalar((static_cast<double>(i) *2.0 *SIMD_PI) /static_cast<double>(subdivisions));
 		auto position = side.rotate(forward,angle);
 		btQuaternion q(forward,angle);
 
+		auto cylShape = CreateSharedPtr<pragma::physics::BtConvexShape>(*this,std::make_shared<btCylinderShapeZ>(
+			btVector3(btScalar(innerRadius),btScalar(innerRadius),btScalar((SIMD_PI /static_cast<double>(subdivisions)) +0.5 *gap))
+		));
+		cylShape->SetLocalPose(pragma::physics::Transform{uvec::create(position),uquat::create(q)});
+
 		auto pShape = std::static_pointer_cast<IShape>(cylShape);
-		rshape->AddShape(*pShape,uvec::create(position),uquat::create(q));
+		ptrShapes.push_back(pShape);
+		shapes.push_back(pShape.get());
 	}
-	return rshape;
+	return CreateCompoundShape(shapes);
 }
 std::shared_ptr<pragma::physics::IConvexHullShape> pragma::physics::BtEnvironment::CreateConvexHullShape(const IMaterial &mat)
 {
@@ -369,14 +374,6 @@ std::shared_ptr<pragma::physics::IConvexHullShape> pragma::physics::BtEnvironmen
 std::shared_ptr<pragma::physics::ITriangleShape> pragma::physics::BtEnvironment::CreateTriangleShape(const IMaterial &mat)
 {
 	return CreateSharedPtr<BtTriangleShape>(*this);
-}
-std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment::CreateCompoundShape()
-{
-	return CreateSharedPtr<BtCompoundShape>(*this,std::make_shared<btCompoundShape>());
-}
-std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment::CreateCompoundShape(IShape &shape)
-{
-	return CreateSharedPtr<BtCompoundShape>(*this,std::make_shared<btCompoundShape>(),std::vector<IShape*>{&shape});
 }
 std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment::CreateCompoundShape(std::vector<IShape*> &shapes)
 {
@@ -392,21 +389,20 @@ std::shared_ptr<pragma::physics::IShape> pragma::physics::BtEnvironment::CreateH
 util::TSharedHandle<pragma::physics::IGhostObject> pragma::physics::BtEnvironment::CreateGhostObject(IShape &shape)
 {
 	auto ghost = CreateSharedHandle<BtGhostObject>(*this,std::make_unique<btPairCachingGhostObject>(),shape);
-	ghost->Initialize();
 	AddCollisionObject(*ghost);
 	return util::shared_handle_cast<BtGhostObject,IGhostObject>(ghost);
 }
 util::TSharedHandle<pragma::physics::ICollisionObject> pragma::physics::BtEnvironment::CreateCollisionObject(IShape &shape)
 {
 	auto collisionObject = CreateSharedHandle<pragma::physics::BtCollisionObject>(*this,std::make_unique<btCollisionObject>(),shape);
-	collisionObject->Initialize();
 	AddCollisionObject(*collisionObject);
 	return util::shared_handle_cast<BtCollisionObject,ICollisionObject>(collisionObject);
 }
-util::TSharedHandle<pragma::physics::IRigidBody> pragma::physics::BtEnvironment::CreateRigidBody(float mass,IShape &shape,const Vector3 &localInertia)
+util::TSharedHandle<pragma::physics::IRigidBody> pragma::physics::BtEnvironment::CreateRigidBody(float mass,IShape &shape,const Vector3 &localInertia,bool dynamic)
 {
+	if(dynamic == false)
+		mass = 0.f;
 	auto collisionObject = CreateSharedHandle<BtRigidBody>(*this,mass,dynamic_cast<BtShape&>(shape),localInertia);
-	collisionObject->Initialize();
 	AddCollisionObject(*collisionObject);
 	return util::shared_handle_cast<BtRigidBody,IRigidBody>(collisionObject);
 }
@@ -573,7 +569,6 @@ util::TSharedHandle<pragma::physics::ISoftBody> pragma::physics::BtEnvironment::
 		auto *btShape = body->getCollisionShape();
 		auto shape = CreateSharedPtr<BtShape>(*this,btShape,false);
 		auto softBody = CreateSharedHandle<BtSoftBody>(*this,std::move(body),*shape,indexTranslations);
-		softBody->Initialize();
 		AddCollisionObject(*softBody);
 		return util::shared_handle_cast<BtSoftBody,ISoftBody>(softBody);
 		/*c_game->AddCallback("Tick",FunctionCallback<void>::Create([]() {
@@ -754,7 +749,7 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 	//if(uvec::cmp(origin,data.GetTargetOrigin()) == true)
 	//	btEnd.setX(btEnd.getX() +1.f); // Move it slightly, so source and target aren't the same (Causes fuzzyZero assertion error in debug mode)
 #endif
-	auto *filter = data.GetFilter();
+	auto &filter = data.GetFilter();
 	auto flags = data.GetFlags();
 	auto mask = data.GetCollisionFilterMask();
 	auto group = data.GetCollisionFilterGroup();
@@ -903,7 +898,7 @@ Bool pragma::physics::BtEnvironment::Overlap(const TraceData &data,std::vector<T
 #endif
 	return false;
 }
-Bool pragma::physics::BtEnvironment::Sweep(const TraceData &data,TraceResult *result) const
+Bool pragma::physics::BtEnvironment::Sweep(const TraceData &data,std::vector<TraceResult> *results) const
 {
 #if 0
 	std::vector<btConvexShape*> shapes;
@@ -1179,7 +1174,7 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 	controller->setUseGhostSweepTest(false); // If set to true => causes penetration issues with convex meshes, resulting in bouncy physics
 	controller->setMaxSlope(umath::deg_to_rad(slopeLimitDeg));
 	AddAction(controller.get());
-	auto btController =  util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,*ghostObject,*shape,std::move(controller)));
+	auto btController =  util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller)));
 	AddController(*btController);
 	return btController;
 }
@@ -1205,6 +1200,6 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 
 	auto *world = GetWorld();
 	AddAction(controller.get());
-	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,*ghostObject,*shape,std::move(controller)));
+	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller)));
 }
 #pragma optimize("",on)

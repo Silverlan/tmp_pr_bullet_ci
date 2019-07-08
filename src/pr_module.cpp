@@ -10,5 +10,7 @@ extern "C"
 	PRAGMA_EXPORT void initialize_physics_engine(NetworkState &nw,std::unique_ptr<pragma::physics::IEnvironment> &outEnv)
 	{
 		outEnv = std::make_unique<pragma::physics::BtEnvironment>(nw);
+		if(outEnv->Initialize() == false)
+			outEnv = nullptr;
 	}
 };

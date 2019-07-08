@@ -47,7 +47,7 @@ namespace pragma::physics
 		virtual BtDoFSpringConstraint *GetBtDoFSpringConstraint();
 		const BtDoFSpringConstraint *GetBtDoFSpringConstraint() const;
 
-		virtual void Initialize() override;
+		virtual void Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle) override;
 		virtual void SetEnabled(bool b) override;
 		virtual bool IsEnabled() const override;
 		virtual void EnableCollisions() override;

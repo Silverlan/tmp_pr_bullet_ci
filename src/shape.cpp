@@ -33,6 +33,9 @@ void pragma::physics::BtShape::GetBoundingSphere(Vector3 &outCenter,float &outRa
 void pragma::physics::BtShape::SetTrigger(bool bTrigger) {m_bTrigger = bTrigger;}
 bool pragma::physics::BtShape::IsTrigger() const {return m_bTrigger;}
 
+void pragma::physics::BtShape::SetLocalPose(const Transform &t) {m_localPose = t;}
+const pragma::physics::Transform &pragma::physics::BtShape::GetLocalPose() const {return m_localPose;}
+
 void pragma::physics::BtShape::GetAABB(Vector3 &min,Vector3 &max) const
 {
 	if(m_shape == nullptr)
@@ -78,16 +81,18 @@ void pragma::physics::BtConvexShape::SetLocalScaling(const Vector3 &scale)
 //////////////////////////////////
 
 pragma::physics::BtConvexHullShape::BtConvexHullShape(IEnvironment &env,const std::shared_ptr<btConvexHullShape> &shape)
-	: IShape{env},IConvexShape{env},IConvexHullShape{env},BtConvexShape{env,shape},m_surfaceMaterial(0)
+	: IShape{env},IConvexShape{env},IConvexHullShape{env},BtConvexShape{env,shape}
 {}
 btConvexHullShape &pragma::physics::BtConvexHullShape::GetBtConvexHullShape() {return static_cast<btConvexHullShape&>(GetBtShape());}
-void pragma::physics::BtConvexHullShape::SetSurfaceMaterial(int id) {m_surfaceMaterial = id;}
-int pragma::physics::BtConvexHullShape::GetSurfaceMaterial() const {return m_surfaceMaterial;}
 
 void pragma::physics::BtConvexHullShape::AddPoint(const Vector3 &point)
 {
 	GetBtConvexHullShape().addPoint(btVector3(point.x,point.y,point.z) *BtEnvironment::WORLD_SCALE);
 }
+void pragma::physics::BtConvexHullShape::AddTriangle(uint32_t idx0,uint32_t idx1,uint32_t idx2) {}
+void pragma::physics::BtConvexHullShape::ReservePoints(uint32_t numPoints) {}
+void pragma::physics::BtConvexHullShape::ReserveTriangles(uint32_t numTris) {}
+void pragma::physics::BtConvexHullShape::Build() {}
 
 //////////////////////////////////
 
@@ -142,12 +147,6 @@ void pragma::physics::BtTriangleShape::AddTriangle(const Vector3 &a,const Vector
 	);*/
 }
 
-void pragma::physics::BtTriangleShape::ReserveTriangles(std::size_t count)
-{
-	m_vertices.reserve(count *3);
-	m_triangles.reserve(count *3);
-	m_faceMaterials.reserve(count);
-}
 btTriangleIndexVertexArray *pragma::physics::BtTriangleShape::GetBtIndexVertexArray() {return m_triangleArray.get();}
 
 void pragma::physics::BtTriangleShape::Build(const std::vector<SurfaceMaterial> *materials)
@@ -163,7 +162,7 @@ void pragma::physics::BtTriangleShape::Build(const std::vector<SurfaceMaterial> 
 	if(materials == nullptr)
 	{
 		m_triangleArray = std::make_unique<btTriangleIndexVertexArray>(
-			static_cast<int>(m_triangles.size() /3),&m_triangles[0],static_cast<int>(sizeof(int) *3),
+			static_cast<int>(m_triangles.size() /3),reinterpret_cast<int32_t*>(m_triangles.data()),static_cast<int>(sizeof(int) *3),
 			static_cast<int>(btVerts.size()),reinterpret_cast<btScalar*>(btVerts.data()),static_cast<int>(sizeof(btVector3))
 		);
 		shape = new btBvhTriangleMeshShape(m_triangleArray.get(),false);
@@ -171,7 +170,7 @@ void pragma::physics::BtTriangleShape::Build(const std::vector<SurfaceMaterial> 
 	else
 	{
 		m_triangleArray = std::make_unique<btTriangleIndexVertexMaterialArray>(
-			static_cast<int>(m_triangles.size() /3),&m_triangles[0],static_cast<int>(sizeof(int) *3),
+			static_cast<int>(m_triangles.size() /3),reinterpret_cast<int32_t*>(m_triangles.data()),static_cast<int>(sizeof(int) *3),
 			static_cast<int>(btVerts.size()),reinterpret_cast<btScalar*>(btVerts.data()),static_cast<int>(sizeof(btVector3)),
 			static_cast<int>(materials->size()),(unsigned char*)(&(*materials)[0]),static_cast<int>(sizeof(SurfaceMaterial)),
 			&m_faceMaterials[0],static_cast<int>(sizeof(int))
@@ -200,12 +199,9 @@ pragma::physics::BtCompoundShape::BtCompoundShape(IEnvironment &env,const std::s
 	: BtShape{env,btShape},IShape{env},ICompoundShape{env,shapes}
 {}
 btCompoundShape &pragma::physics::BtCompoundShape::GetBtCompoundShape() {return static_cast<btCompoundShape&>(GetBtShape());}
-void pragma::physics::BtCompoundShape::AddShape(pragma::physics::IShape &shape,const Vector3 &origin,const Quat &rot)
+void pragma::physics::BtCompoundShape::AddShape(pragma::physics::IShape &shape)
 {
-	btTransform t;
-	t.setIdentity();
-	t.setOrigin(btVector3(origin.x,origin.y,origin.z) *BtEnvironment::WORLD_SCALE);
-	t.setRotation(uquat::create_bt(rot));
-	GetBtCompoundShape().addChildShape(t,&dynamic_cast<BtShape&>(shape).GetBtShape());
+	auto &t = shape.GetLocalPose();
+	GetBtCompoundShape().addChildShape(static_cast<BtEnvironment&>(m_physEnv).CreateBtTransform(t),&dynamic_cast<BtShape&>(shape).GetBtShape());
 	m_shapes.push_back(std::static_pointer_cast<IShape>(shape.shared_from_this()));
 }

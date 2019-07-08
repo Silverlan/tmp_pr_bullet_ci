@@ -12,15 +12,13 @@ pragma::physics::BtConstraint::BtConstraint(pragma::physics::IEnvironment &env,s
 pragma::physics::BtEnvironment &pragma::physics::BtConstraint::GetBtEnv() const {return static_cast<BtEnvironment&>(m_physEnv);}
 btTypedConstraint &pragma::physics::BtConstraint::GetInternalObject() const {return *m_constraint;}
 
-void pragma::physics::BtConstraint::Initialize()
+void pragma::physics::BtConstraint::Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle)
 {
+	IConstraint::Initialize(l,handle);
 	auto &physEnv = GetBtEnv();
 	auto *world = physEnv.GetWorld();
 	world->removeConstraint(m_constraint.get());
 	world->addConstraint(m_constraint.get());
-
-	auto &nwState = physEnv.GetNetworkState();
-	InitializeLuaObject(nwState.GetLuaState());
 }
 
 pragma::physics::IRigidBody *pragma::physics::BtConstraint::GetSourceObject()
@@ -91,7 +89,6 @@ pragma::physics::BtFixedConstraint::BtFixedConstraint(IEnvironment &env,std::uni
 	auto &c = GetInternalObject();
 	m_srcTransform = GetBtEnv().CreateTransform(c.getFrameOffsetA());
 	m_tgtTransform = GetBtEnv().CreateTransform(c.getFrameOffsetB());
-	Initialize();
 }
 pragma::physics::BtFixedConstraint *pragma::physics::BtFixedConstraint::GetBtFixedConstraint() {return this;}
 btFixedConstraint &pragma::physics::BtFixedConstraint::GetInternalObject() const {return static_cast<btFixedConstraint&>(BtConstraint::GetInternalObject());}
@@ -100,9 +97,7 @@ btFixedConstraint &pragma::physics::BtFixedConstraint::GetInternalObject() const
 
 pragma::physics::BtBallSocketConstraint::BtBallSocketConstraint(IEnvironment &env,std::unique_ptr<btPoint2PointConstraint> constraint)
 	: IBallSocketConstraint{env},BtConstraint{env,std::move(constraint)},IConstraint{env}
-{
-	Initialize();
-}
+{}
 pragma::physics::BtBallSocketConstraint *pragma::physics::BtBallSocketConstraint::GetBtBallSocketConstraint() {return this;}
 btPoint2PointConstraint &pragma::physics::BtBallSocketConstraint::GetInternalObject() const {return static_cast<btPoint2PointConstraint&>(BtConstraint::GetInternalObject());}
 
@@ -110,9 +105,7 @@ btPoint2PointConstraint &pragma::physics::BtBallSocketConstraint::GetInternalObj
 
 pragma::physics::BtHingeConstraint::BtHingeConstraint(IEnvironment &env,std::unique_ptr<btHingeConstraint> constraint)
 	: IHingeConstraint{env},BtConstraint{env,std::move(constraint)},IConstraint{env}
-{
-	Initialize();
-}
+{}
 
 pragma::physics::BtHingeConstraint *pragma::physics::BtHingeConstraint::GetBtHingeConstraint() {return this;}
 btHingeConstraint &pragma::physics::BtHingeConstraint::GetInternalObject() const {return static_cast<btHingeConstraint&>(BtConstraint::GetInternalObject());}
@@ -126,9 +119,7 @@ void pragma::physics::BtHingeConstraint::SetLimit(float low,float high,float sof
 
 pragma::physics::BtSliderConstraint::BtSliderConstraint(IEnvironment &env,std::unique_ptr<btSliderConstraint> constraint)
 	: ISliderConstraint{env},BtConstraint{env,std::move(constraint)},IConstraint{env}
-{
-	Initialize();
-}
+{}
 btSliderConstraint &pragma::physics::BtSliderConstraint::GetInternalObject() const {return static_cast<btSliderConstraint&>(BtConstraint::GetInternalObject());}
 
 pragma::physics::BtSliderConstraint *pragma::physics::BtSliderConstraint::GetBtSliderConstraint() {return this;}
@@ -141,7 +132,6 @@ pragma::physics::BtConeTwistConstraint::BtConeTwistConstraint(IEnvironment &env,
 	auto &c = GetInternalObject();
 	m_srcTransform = GetBtEnv().CreateTransform(c.getAFrame());
 	m_tgtTransform = GetBtEnv().CreateTransform(c.getBFrame());
-	Initialize();
 }
 pragma::physics::BtConeTwistConstraint *pragma::physics::BtConeTwistConstraint::GetBtConeTwistConstraint() {return this;}
 btConeTwistConstraint &pragma::physics::BtConeTwistConstraint::GetInternalObject() const {return static_cast<btConeTwistConstraint&>(BtConstraint::GetInternalObject());}
@@ -154,9 +144,7 @@ void pragma::physics::BtConeTwistConstraint::SetLimit(float swingSpan1,float swi
 
 pragma::physics::BtDoFConstraint::BtDoFConstraint(IEnvironment &env,std::unique_ptr<btGeneric6DofConstraint> constraint)
 	: IDoFConstraint{env},BtConstraint{env,std::move(constraint)},IConstraint{env}
-{
-	Initialize();
-}
+{}
 pragma::physics::BtDoFConstraint *pragma::physics::BtDoFConstraint::GetBtDoFConstraint() {return this;}
 btGeneric6DofConstraint &pragma::physics::BtDoFConstraint::GetInternalObject() const {return static_cast<btGeneric6DofConstraint&>(BtConstraint::GetInternalObject());}
 void pragma::physics::BtDoFConstraint::SetLinearLimit(const Vector3 &lower,const Vector3 &upper)
@@ -637,7 +625,6 @@ pragma::physics::BtDoFSpringConstraint::BtDoFSpringConstraint(IEnvironment &env,
 	auto &c = GetInternalObject();
 	m_srcTransform = GetBtEnv().CreateTransform(c.getFrameOffsetA());
 	m_tgtTransform = GetBtEnv().CreateTransform(c.getFrameOffsetB());
-	Initialize();
 }
 btGeneric6DofSpring2Constraint &pragma::physics::BtDoFSpringConstraint::GetInternalObject() const {return static_cast<btGeneric6DofSpring2Constraint&>(BtConstraint::GetInternalObject());}
 inline int32_t get_axis_index(pragma::physics::BtDoFSpringConstraint::AxisType type,pragma::Axis axis)
