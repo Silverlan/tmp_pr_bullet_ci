@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "constraint.hpp"
 #include "environment.hpp"
 #include "collision_object.hpp"
@@ -12,21 +16,21 @@ pragma::physics::BtConstraint::BtConstraint(pragma::physics::IEnvironment &env,s
 pragma::physics::BtEnvironment &pragma::physics::BtConstraint::GetBtEnv() const {return static_cast<BtEnvironment&>(m_physEnv);}
 btTypedConstraint &pragma::physics::BtConstraint::GetInternalObject() const {return *m_constraint;}
 
-void pragma::physics::BtConstraint::Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle)
+void pragma::physics::BtConstraint::Initialize()
 {
-	IConstraint::Initialize(l,handle);
+	IConstraint::Initialize();
 	auto &physEnv = GetBtEnv();
 	auto *world = physEnv.GetWorld();
 	world->removeConstraint(m_constraint.get());
 	world->addConstraint(m_constraint.get());
 }
 
-pragma::physics::IRigidBody *pragma::physics::BtConstraint::GetSourceObject()
+pragma::physics::IRigidBody *pragma::physics::BtConstraint::GetSourceActor()
 {
 	auto &bodyA = m_constraint->getRigidBodyA();
 	return static_cast<pragma::physics::ICollisionObject*>(bodyA.getUserPointer())->GetRigidBody();
 }
-pragma::physics::IRigidBody *pragma::physics::BtConstraint::GetTargetObject()
+pragma::physics::IRigidBody *pragma::physics::BtConstraint::GetTargetActor()
 {
 	auto &bodyB = m_constraint->getRigidBodyB();
 	return static_cast<pragma::physics::ICollisionObject*>(bodyB.getUserPointer())->GetRigidBody();
@@ -46,20 +50,77 @@ void pragma::physics::BtConstraint::DoSetCollisionsEnabled(Bool b)
 	bodyB.removeConstraintRef(m_constraint.get());
 }
 
-void pragma::physics::BtConstraint::EnableCollisions()
+void pragma::physics::BtConstraint::RemoveWorldObject()
 {
-	SetCollisionsEnabled(true);
+	// TODO
 }
-
-void pragma::physics::BtConstraint::DisableCollisions()
+void pragma::physics::BtConstraint::DoAddWorldObject()
 {
-	SetCollisionsEnabled(false);
+	// TODO
 }
 
 void pragma::physics::BtConstraint::SetEnabled(bool b) {m_constraint->setEnabled(b);}
 bool pragma::physics::BtConstraint::IsEnabled() const {return m_constraint->isEnabled();}
 
 btTypedConstraint &pragma::physics::BtConstraint::GetBtConstraint() const {return *m_constraint;}
+
+bool pragma::physics::BtConstraint::IsBroken() const
+{
+	// TODO
+	return false;
+}
+void pragma::physics::BtConstraint::Break()
+{
+	// TODO
+}
+
+float pragma::physics::BtConstraint::GetBreakForce() const
+{
+	// TODO
+	return 0.f;
+}
+void pragma::physics::BtConstraint::SetBreakForce(float threshold)
+{
+	// TODO
+}
+float pragma::physics::BtConstraint::GetBreakTorque() const
+{
+	// TODO
+	return 0.f;
+}
+void pragma::physics::BtConstraint::SetBreakTorque(float torque)
+{
+	// TODO
+}
+
+void pragma::physics::BtConstraint::SetSoftness(float softness)
+{
+	// TODO
+}
+void pragma::physics::BtConstraint::SetDamping(float damping)
+{
+	// TODO
+}
+void pragma::physics::BtConstraint::SetRestitution(float restitution)
+{
+	// TODO
+}
+
+float pragma::physics::BtConstraint::GetSoftness() const
+{
+	// TODO
+	return 0.f;
+}
+float pragma::physics::BtConstraint::GetDamping() const
+{
+	// TODO
+	return 0.f;
+}
+float pragma::physics::BtConstraint::GetRestitution() const
+{
+	// TODO
+	return 0.f;
+}
 
 pragma::physics::BtFixedConstraint *pragma::physics::BtConstraint::GetBtFixedConstraint() {return nullptr;}
 const pragma::physics::BtFixedConstraint *pragma::physics::BtConstraint::GetBtFixedConstraint() const {return const_cast<BtConstraint*>(this)->GetBtFixedConstraint();}
@@ -76,10 +137,10 @@ const pragma::physics::BtDoFConstraint *pragma::physics::BtConstraint::GetBtDoFC
 pragma::physics::BtDoFSpringConstraint *pragma::physics::BtConstraint::GetBtDoFSpringConstraint() {return nullptr;}
 const pragma::physics::BtDoFSpringConstraint *pragma::physics::BtConstraint::GetBtDoFSpringConstraint() const {return const_cast<BtConstraint*>(this)->GetBtDoFSpringConstraint();}
 
-void pragma::physics::BtConstraint::SetOverrideSolverIterationCount(int32_t count) {m_constraint->setOverrideNumSolverIterations(count);}
+/*void pragma::physics::BtConstraint::SetOverrideSolverIterationCount(int32_t count) {m_constraint->setOverrideNumSolverIterations(count);}
 int32_t pragma::physics::BtConstraint::GetOverrideSolverIterationCount() const {return m_constraint->getOverrideNumSolverIterations();}
 float pragma::physics::BtConstraint::GetBreakingImpulseThreshold() const {return m_constraint->getBreakingImpulseThreshold() /BtEnvironment::WORLD_SCALE;}
-void pragma::physics::BtConstraint::SetBreakingImpulseThreshold(float threshold) {m_constraint->setBreakingImpulseThreshold(threshold *BtEnvironment::WORLD_SCALE);}
+void pragma::physics::BtConstraint::SetBreakingImpulseThreshold(float threshold) {m_constraint->setBreakingImpulseThreshold(threshold *BtEnvironment::WORLD_SCALE);}*/
 
 ////////////////////////////
 
@@ -110,6 +171,20 @@ pragma::physics::BtHingeConstraint::BtHingeConstraint(IEnvironment &env,std::uni
 pragma::physics::BtHingeConstraint *pragma::physics::BtHingeConstraint::GetBtHingeConstraint() {return this;}
 btHingeConstraint &pragma::physics::BtHingeConstraint::GetInternalObject() const {return static_cast<btHingeConstraint&>(BtConstraint::GetInternalObject());}
 
+void pragma::physics::BtHingeConstraint::SetLimit(umath::Radian lowerLimit,umath::Radian upperLimit)
+{
+	// TODO
+}
+std::pair<umath::Radian,umath::Radian> pragma::physics::BtHingeConstraint::GetLimit() const
+{
+	// TODO
+	return {};
+}
+void pragma::physics::BtHingeConstraint::DisableLimit()
+{
+	// TODO
+}
+
 void pragma::physics::BtHingeConstraint::SetLimit(float low,float high,float softness,float biasFactor,float relaxationFactor)
 {
 	GetInternalObject().setLimit(low,high,softness,biasFactor,relaxationFactor);
@@ -124,6 +199,20 @@ btSliderConstraint &pragma::physics::BtSliderConstraint::GetInternalObject() con
 
 pragma::physics::BtSliderConstraint *pragma::physics::BtSliderConstraint::GetBtSliderConstraint() {return this;}
 
+void pragma::physics::BtSliderConstraint::SetLimit(float lowerLimit,float upperLimit)
+{
+	// TODO
+}
+void pragma::physics::BtSliderConstraint::DisableLimit()
+{
+	// TODO
+}
+std::pair<float,float> pragma::physics::BtSliderConstraint::GetLimit() const
+{
+	// TODO
+	return {};
+}
+
 ////////////////////////////
 
 pragma::physics::BtConeTwistConstraint::BtConeTwistConstraint(IEnvironment &env,std::unique_ptr<btConeTwistConstraint> constraint)
@@ -135,10 +224,30 @@ pragma::physics::BtConeTwistConstraint::BtConeTwistConstraint(IEnvironment &env,
 }
 pragma::physics::BtConeTwistConstraint *pragma::physics::BtConeTwistConstraint::GetBtConeTwistConstraint() {return this;}
 btConeTwistConstraint &pragma::physics::BtConeTwistConstraint::GetInternalObject() const {return static_cast<btConeTwistConstraint&>(BtConstraint::GetInternalObject());}
-void pragma::physics::BtConeTwistConstraint::SetLimit(float swingSpan1,float swingSpan2,float twistSpan,float softness,float biasFactor,float relaxationFactor)
+void pragma::physics::BtConeTwistConstraint::SetLimit(const Vector3 &lowerLimits,const Vector3 &upperLimits)
+{
+	// TODO
+}
+void pragma::physics::BtConeTwistConstraint::SetLimit(float swingSpan1,float swingSpan2,float twistSpan)
+{
+	// TODO
+}
+void pragma::physics::BtConeTwistConstraint::GetLimit(float &outSwingSpan1,float &outSwingSpan2,float &outTwistSpan)
+{
+	// TODO
+}
+/*void pragma::physics::BtConeTwistConstraint::SetLimit(AxisType type,pragma::Axis axis,double lo,double hi)
+{
+	// TODO
+}
+void pragma::physics::BtConeTwistConstraint::SetLimitReversed(AxisType type,pragma::Axis axis,double lo,double hi)
+{
+	// TODO
+}*/
+/*void pragma::physics::BtConeTwistConstraint::SetLimit(float swingSpan1,float swingSpan2,float twistSpan,float softness,float biasFactor,float relaxationFactor)
 {
 	GetInternalObject().setLimit(swingSpan1,swingSpan2,twistSpan,softness,biasFactor,relaxationFactor);
-}
+}*/
 
 ////////////////////////////
 
@@ -679,7 +788,7 @@ void pragma::physics::BtDoFSpringConstraint::CalculateTransforms()
 {
 	GetInternalObject().calculateTransforms();
 }
-void pragma::physics::BtDoFSpringConstraint::CalculateTransforms(const pragma::physics::Transform &frameA,const pragma::physics::Transform &frameB)
+void pragma::physics::BtDoFSpringConstraint::CalculateTransforms(const umath::Transform &frameA,const umath::Transform &frameB)
 {
 	GetInternalObject().calculateTransforms(GetBtEnv().CreateBtTransform(frameA),GetBtEnv().CreateBtTransform(frameB));
 }
@@ -691,19 +800,19 @@ btTranslationalLimitMotor2 *pragma::physics::BtDoFSpringConstraint::GetTranslati
 {
 	return GetInternalObject().getTranslationalLimitMotor();
 }
-pragma::physics::Transform pragma::physics::BtDoFSpringConstraint::GetCalculatedTransformA() const
+umath::Transform pragma::physics::BtDoFSpringConstraint::GetCalculatedTransformA() const
 {
 	return GetBtEnv().CreateTransform(GetInternalObject().getCalculatedTransformA());
 }
-pragma::physics::Transform pragma::physics::BtDoFSpringConstraint::GetCalculatedTransformB() const
+umath::Transform pragma::physics::BtDoFSpringConstraint::GetCalculatedTransformB() const
 {
 	return GetBtEnv().CreateTransform(GetInternalObject().getCalculatedTransformB());
 }
-pragma::physics::Transform pragma::physics::BtDoFSpringConstraint::GetFrameOffsetA() const
+umath::Transform pragma::physics::BtDoFSpringConstraint::GetFrameOffsetA() const
 {
 	return GetBtEnv().CreateTransform(GetInternalObject().getFrameOffsetA());
 }
-pragma::physics::Transform pragma::physics::BtDoFSpringConstraint::GetFrameOffsetB() const
+umath::Transform pragma::physics::BtDoFSpringConstraint::GetFrameOffsetB() const
 {
 	return GetBtEnv().CreateTransform(GetInternalObject().getFrameOffsetB());
 }
@@ -719,7 +828,7 @@ double pragma::physics::BtDoFSpringConstraint::GetRelativePivotPosition(pragma::
 {
 	return GetInternalObject().getRelativePivotPosition(umath::to_integral(axisIndex));
 }
-void pragma::physics::BtDoFSpringConstraint::SetFrames(const pragma::physics::Transform &frameA,const pragma::physics::Transform &frameB)
+void pragma::physics::BtDoFSpringConstraint::SetFrames(const umath::Transform &frameA,const umath::Transform &frameB)
 {
 	GetInternalObject().setFrames(GetBtEnv().CreateBtTransform(frameA),GetBtEnv().CreateBtTransform(frameB));
 }

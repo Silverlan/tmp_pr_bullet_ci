@@ -1,11 +1,15 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "motion_state.hpp"
 #include "environment.hpp"
 
-KinematicMotionState::KinematicMotionState(const pragma::physics::Transform &initialTransform)
+KinematicMotionState::KinematicMotionState(const umath::Transform &initialTransform)
 	: m_transform{initialTransform}
 {}
 KinematicMotionState::~KinematicMotionState() {}
 void KinematicMotionState::getWorldTransform(btTransform &worldTrans) const {worldTrans = pragma::physics::BtEnvironment::CreateBtTransform(m_transform);}
 void KinematicMotionState::setWorldTransform(const btTransform &worldTrans) {/*m_transform.SetTransform(worldTrans);*/}
-pragma::physics::Transform &KinematicMotionState::GetWorldTransform() {return m_transform;}
-const pragma::physics::Transform &KinematicMotionState::GetWorldTransform() const {return const_cast<KinematicMotionState*>(this)->GetWorldTransform();}
+umath::Transform &KinematicMotionState::GetWorldTransform() {return m_transform;}
+const umath::Transform &KinematicMotionState::GetWorldTransform() const {return const_cast<KinematicMotionState*>(this)->GetWorldTransform();}

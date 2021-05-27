@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "pr_module.hpp"
 #include "environment.hpp"
 #include <sharedutils/util_weak_handle.hpp>
@@ -7,10 +11,15 @@
 
 extern "C"
 {
-	PRAGMA_EXPORT void initialize_physics_engine(NetworkState &nw,std::unique_ptr<pragma::physics::IEnvironment> &outEnv)
+	PRAGMA_EXPORT void initialize_physics_engine(NetworkState &nw,std::unique_ptr<pragma::physics::IEnvironment,void(*)(pragma::physics::IEnvironment*)> &outEnv)
 	{
-		outEnv = std::make_unique<pragma::physics::BtEnvironment>(nw);
-		if(outEnv->Initialize() == false)
-			outEnv = nullptr;
+		auto env = std::unique_ptr<pragma::physics::IEnvironment,void(*)(pragma::physics::IEnvironment*)>{
+			new pragma::physics::BtEnvironment{nw},[](pragma::physics::IEnvironment *env) {
+			env->OnRemove();
+			delete env;
+		}};
+		if(env->Initialize() == false)
+			env = nullptr;
+		outEnv = std::move(env);
 	}
 };

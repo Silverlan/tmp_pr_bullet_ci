@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "environment.hpp"
 #include "collision_object.hpp"
 #include "constraint.hpp"
@@ -17,12 +21,12 @@
 #include <pragma/util/util_game.hpp>
 #include <pragma/physics/physsoftbodyinfo.hpp>
 #include <pragma/physics/raytraces.h>
-#include <pragma/physics/physcontact.h>
 #include <pragma/entities/components/base_physics_component.hpp>
 #include <pragma/entities/trigger/base_trigger_touch.hpp>
 #include <pragma/entities/baseentity.h>
 #include <pragma/audio/alsound.h>
 #include <pragma/audio/alsound_type.h>
+#include <unordered_set>
 
 enum class BulletBroadphaseType : uint32_t
 {
@@ -30,7 +34,7 @@ enum class BulletBroadphaseType : uint32_t
 	AxisSweep3_32Bit
 };
 #pragma optimize("",off)
-const double pragma::physics::BtEnvironment::WORLD_SCALE = util::units_to_metres(1.0);
+const double pragma::physics::BtEnvironment::WORLD_SCALE = util::pragma::units_to_metres(1.0);
 const double pragma::physics::BtEnvironment::WORLD_SCALE_SQR = umath::pow(BtEnvironment::WORLD_SCALE,2.0);
 const float pragma::physics::BtEnvironment::CCD_MOTION_THRESHOLD = 4.f *static_cast<float>(WORLD_SCALE);
 const float pragma::physics::BtEnvironment::CCD_SWEPT_SPHERE_RADIUS = 2.f *static_cast<float>(WORLD_SCALE);
@@ -117,19 +121,41 @@ pragma::physics::BtEnvironment::BtEnvironment(NetworkState &state)
 	m_softBodyWorldInfo->m_sparsesdf.Initialize();
 }
 pragma::physics::BtEnvironment::~BtEnvironment() {}
-pragma::physics::Transform pragma::physics::BtEnvironment::CreateTransform(const btTransform &btTransform)
+umath::Transform pragma::physics::BtEnvironment::CreateTransform(const btTransform &btTransform)
 {
-	return Transform {uvec::create(btTransform.getOrigin()),uquat::create(btTransform.getRotation())};
+	return umath::Transform {ToPragmaPosition(btTransform.getOrigin()),uquat::create(btTransform.getRotation())};
 }
-btTransform pragma::physics::BtEnvironment::CreateBtTransform(const Transform &t)
+btTransform pragma::physics::BtEnvironment::CreateBtTransform(const umath::Transform &t)
 {
-	return btTransform {uquat::create_bt(t.GetRotation()),uvec::create_bt(t.GetOrigin())};
+	return btTransform {uquat::create_bt(t.GetRotation()),ToBtPosition(t.GetOrigin())};
 }
+Vector3 pragma::physics::BtEnvironment::ToPragmaPosition(const btVector3 &pos) {return Vector3{pos.x(),pos.y(),pos.z()} /static_cast<float>(WORLD_SCALE);}
+Color pragma::physics::BtEnvironment::ToPragmaColor(const btVector3 &col) {return Color{static_cast<int16_t>(col.x() *255.f),static_cast<int16_t>(col.y() *255.f),static_cast<int16_t>(col.z() *255.f)};}
+btVector3 pragma::physics::BtEnvironment::ToBtPosition(const Vector3 &pos) {return btVector3{pos.x,pos.y,pos.z} *static_cast<float>(WORLD_SCALE);}
+Vector3 pragma::physics::BtEnvironment::ToPragmaNormal(const btVector3 &n) {return Vector3{static_cast<float>(n.x()),static_cast<float>(n.y()),static_cast<float>(n.z())};}
+btVector3 pragma::physics::BtEnvironment::ToBtNormal(const Vector3 &n) {return btVector3{n.x,n.y,n.z};}
+double pragma::physics::BtEnvironment::ToPragmaDistance(btScalar d) {return d /WORLD_SCALE;}
+btScalar pragma::physics::BtEnvironment::ToBtDistance(double d) {return d *WORLD_SCALE;}
 std::shared_ptr<pragma::physics::IMaterial> pragma::physics::BtEnvironment::CreateMaterial(float staticFriction,float dynamicFriction,float restitution)
 {
 	return CreateSharedPtr<BtMaterial>(*this,staticFriction,dynamicFriction,restitution);
 }
-pragma::physics::IVisualDebugger *pragma::physics::BtEnvironment::InitializeVisualDebugger()
+util::TSharedHandle<pragma::physics::ICollisionObject> pragma::physics::BtEnvironment::CreatePlane(const Vector3 &n,float d,const IMaterial &mat)
+{
+	// TODO
+	return nullptr;
+}
+util::TSharedHandle<pragma::physics::IVehicle> pragma::physics::BtEnvironment::CreateVehicle(const VehicleCreateInfo &vhcDesc)
+{
+	// TODO
+	return nullptr;
+}
+void pragma::physics::BtEnvironment::UpdateSurfaceTypes()
+{
+	// TODO
+}
+// TODO
+/*pragma::physics::IVisualDebugger *pragma::physics::BtEnvironment::InitializeVisualDebugger()
 {
 	if(m_visualDebugger)
 		return m_visualDebugger.get();
@@ -138,9 +164,157 @@ pragma::physics::IVisualDebugger *pragma::physics::BtEnvironment::InitializeVisu
 	auto *world = GetWorld();
 	world->setDebugDrawer(visDebugger.get());
 	return m_visualDebugger.get();
-}
+}*/
 pragma::physics::BtRigidBody &pragma::physics::BtEnvironment::ToBtType(IRigidBody &body) {return dynamic_cast<BtRigidBody&>(body);}
 float pragma::physics::BtEnvironment::GetWorldScale() const {return WORLD_SCALE;}
+
+namespace pragma::physics
+{
+	class BtDebugDrawer
+		: public btIDebugDraw
+	{
+	public:
+		BtDebugDrawer(pragma::physics::BtEnvironment &env,pragma::physics::IVisualDebugger &debugger)
+			: m_env{env},m_debugger{debugger}
+		{}
+		virtual ~BtDebugDrawer() override {}
+		virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& fromColor, const btVector3& toColor) override
+		{
+			m_debugger.DrawLine(
+				pragma::physics::BtEnvironment::ToPragmaPosition(from),pragma::physics::BtEnvironment::ToPragmaPosition(to),
+				pragma::physics::BtEnvironment::ToPragmaColor(fromColor),pragma::physics::BtEnvironment::ToPragmaColor(toColor)
+			);
+		}
+		virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override
+		{
+			m_debugger.DrawLine(
+				pragma::physics::BtEnvironment::ToPragmaPosition(from),pragma::physics::BtEnvironment::ToPragmaPosition(to),
+				pragma::physics::BtEnvironment::ToPragmaColor(color)
+			);
+		}
+		virtual void drawSphere(const btVector3& p, btScalar radius, const btVector3& color) override
+		{
+			// TODO
+		}
+		virtual void drawTriangle(const btVector3& a, const btVector3& b, const btVector3& c, const btVector3& color, btScalar alpha) override
+		{
+			auto col = pragma::physics::BtEnvironment::ToPragmaColor(color);
+			col.a = alpha *255.f;
+			m_debugger.DrawTriangle(
+				pragma::physics::BtEnvironment::ToPragmaPosition(a),pragma::physics::BtEnvironment::ToPragmaPosition(b),pragma::physics::BtEnvironment::ToPragmaPosition(c),
+				col,col,col
+			);
+		}
+		virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color) override
+		{
+			m_debugger.DrawPoint(pragma::physics::BtEnvironment::ToPragmaPosition(PointOnB),pragma::physics::BtEnvironment::ToPragmaColor(color));
+		}
+		virtual void reportErrorWarning(const char* warningString) override
+		{
+			m_debugger.ReportErrorWarning(warningString);
+		}
+		virtual void draw3dText(const btVector3& location, const char* textString) override
+		{
+			m_debugger.DrawText(textString,pragma::physics::BtEnvironment::ToPragmaPosition(location),Color::White,1.f);
+		}
+		virtual void setDebugMode(int debugMode) override {m_debugMode = debugMode;}
+		virtual int getDebugMode() const override { return m_debugMode; }
+	private:
+		pragma::physics::BtEnvironment &m_env;
+		pragma::physics::IVisualDebugger &m_debugger;
+		int m_debugMode = 0;
+	};
+};
+void pragma::physics::BtEnvironment::OnVisualDebuggerChanged(pragma::physics::IVisualDebugger *debugger)
+{
+	if(!debugger)
+	{
+		m_btWorld->setDebugDrawer(nullptr);
+		m_btDebugDrawer = nullptr;
+		return;
+	}
+	m_btDebugDrawer = std::make_unique<BtDebugDrawer>(*this,*debugger);
+	m_btWorld->setDebugDrawer(m_btDebugDrawer.get());
+	m_btDebugDrawer->setDebugMode(
+		btIDebugDraw::DebugDrawModes::DBG_DrawWireframe | btIDebugDraw::DebugDrawModes::DBG_DrawAabb | btIDebugDraw::DebugDrawModes::DBG_DrawConstraints
+	);
+}
+
+#ifdef BT_ENABLE_PROFILE
+static void bt_profile_manager_dump_recursive(CProfileIterator* profileIterator, int spacing)
+{
+	profileIterator->First();
+	if (profileIterator->Is_Done())
+		return;
+
+	float accumulated_time = 0, parent_time = profileIterator->Is_Root() ? CProfileManager::Get_Time_Since_Reset() : profileIterator->Get_Current_Parent_Total_Time();
+	int i;
+	int frames_since_reset = CProfileManager::Get_Frame_Count_Since_Reset();
+	for (i = 0; i < spacing; i++) Con::cout<<".";
+	Con::cout<<"----------------------------------\n";
+	for (i = 0; i < spacing; i++) Con::cout<<".";
+	Con::cout<<"Profiling: "<<profileIterator->Get_Current_Parent_Name()<<" (total running time: "<<parent_time<<" ms) ---\n";
+	float totalTime = 0.f;
+
+	int numChildren = 0;
+
+	for (i = 0; !profileIterator->Is_Done(); i++, profileIterator->Next())
+	{
+		numChildren++;
+		float current_total_time = profileIterator->Get_Current_Total_Time();
+		accumulated_time += current_total_time;
+		float fraction = parent_time > SIMD_EPSILON ? (current_total_time / parent_time) * 100 : 0.f;
+		{
+			int i;
+			for (i = 0; i < spacing; i++) Con::cout<<".";
+		}
+		Con::cout<<i<<" -- "<<profileIterator->Get_Current_Name()<<" ("<<fraction<<" %%) :: "<<(current_total_time / (double)frames_since_reset)<<" ms / frame ("<<profileIterator->Get_Current_Total_Calls()<<" calls)\n";
+		totalTime += current_total_time;
+		//recurse into children
+	}
+
+	if (parent_time < accumulated_time)
+	{
+		//printf("what's wrong\n");
+	}
+	for (i = 0; i < spacing; i++) Con::cout<<".";
+	Con::cout<<"Unaccounted: ("<<(parent_time > SIMD_EPSILON ? ((parent_time - accumulated_time) / parent_time) * 100 : 0.f)<<" %%) :: "<<(parent_time - accumulated_time)<<" ms\n";
+
+	for (i = 0; i < numChildren; i++)
+	{
+		profileIterator->Enter_Child(i);
+		bt_profile_manager_dump_recursive(profileIterator, spacing + 3);
+		profileIterator->Enter_Parent();
+	}
+}
+
+static void bt_profile_manager_dump_all()
+{
+	CProfileIterator* profileIterator = 0;
+	profileIterator = CProfileManager::Get_Iterator();
+
+	bt_profile_manager_dump_recursive(profileIterator, 0);
+
+	CProfileManager::Release_Iterator(profileIterator);
+}
+#endif
+
+void pragma::physics::BtEnvironment::StartProfiling()
+{
+#ifdef BT_ENABLE_PROFILE
+	btSetCustomEnterProfileZoneFunc(CProfileManager::Start_Profile);
+	btSetCustomLeaveProfileZoneFunc(CProfileManager::Stop_Profile);
+#endif
+}
+void pragma::physics::BtEnvironment::EndProfiling()
+{
+#ifdef BT_ENABLE_PROFILE
+	Con::cout<<"-------- Physics Profiler Results --------"<<Con::endl;
+	// CProfileManager::dumpAll(); // dumpAll uses printf, which we can't use
+	bt_profile_manager_dump_all(); // Same as CProfileManager::dumpAll, but uses Con::cout instead of printf
+	Con::cout<<"------------------------------------------"<<Con::endl;
+#endif
+}
 void pragma::physics::BtEnvironment::SimulationCallback(btDynamicsWorld *world,btScalar timeStep)
 {
 	void *userData = world->getWorldUserInfo();
@@ -178,10 +352,34 @@ util::TSharedHandle<pragma::physics::IHingeConstraint> pragma::physics::BtEnviro
 }
 util::TSharedHandle<pragma::physics::ISliderConstraint> pragma::physics::BtEnvironment::AddSliderConstraint(std::unique_ptr<btSliderConstraint> c)
 {
-	c->setDbgDrawSize(PHYS_CONSTRAINT_DEBUG_DRAW_SIZE);
+	// TODO
+	/*c->setDbgDrawSize(PHYS_CONSTRAINT_DEBUG_DRAW_SIZE);
 	auto constraint = CreateSharedHandle<BtSliderConstraint>(*this,std::move(c));
 	AddConstraint(*constraint);
 	return util::shared_handle_cast<BtSliderConstraint,ISliderConstraint>(constraint);
+
+	auto *rigidBody0 = hBody.Get();
+	auto *rigidBody1 = bodySrc;
+	auto pivot0 = Vector3{};
+	auto pivot1 = rigidBody0->GetPos();
+	auto rotation0 = -rot *uquat::create(EulerAngles(0,90,0));
+	auto rotation1 = rotation0;
+	rotation0 = tgt->GetTransformComponent()->GetOrientation() *rotation0;
+
+	auto slider = physEnv->CreateDoFSpringConstraint(*rigidBody0,pivot0,rotation0,*rigidBody1,pivot1,rotation1);
+	if(slider != nullptr)
+	{
+		slider->SetEntity(GetEntity());
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Linear,pragma::Axis::X,0.f,l);
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Linear,pragma::Axis::Y,0.f,0.f);
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Linear,pragma::Axis::Z,0.f,0.f);
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Angular,pragma::Axis::X,0.f,0.f);
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Angular,pragma::Axis::Y,0.f,0.f);
+		slider->SetLimit(pragma::physics::IDoFSpringConstraint::AxisType::Angular,pragma::Axis::Z,0.f,0.f);
+		m_constraints.push_back(util::shared_handle_cast<pragma::physics::IDoFSpringConstraint,pragma::physics::IConstraint>(slider));
+	}
+	*/
+	return nullptr;
 }
 util::TSharedHandle<pragma::physics::IConeTwistConstraint> pragma::physics::BtEnvironment::AddConeTwistConstraint(std::unique_ptr<btConeTwistConstraint> c)
 {
@@ -359,7 +557,7 @@ std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment:
 		auto cylShape = CreateSharedPtr<pragma::physics::BtConvexShape>(*this,std::make_shared<btCylinderShapeZ>(
 			btVector3(btScalar(innerRadius),btScalar(innerRadius),btScalar((SIMD_PI /static_cast<double>(subdivisions)) +0.5 *gap))
 		));
-		cylShape->SetLocalPose(pragma::physics::Transform{uvec::create(position),uquat::create(q)});
+		cylShape->SetLocalPose(umath::Transform{uvec::create(position),uquat::create(q)});
 
 		auto pShape = std::static_pointer_cast<IShape>(cylShape);
 		ptrShapes.push_back(pShape);
@@ -377,7 +575,9 @@ std::shared_ptr<pragma::physics::ITriangleShape> pragma::physics::BtEnvironment:
 }
 std::shared_ptr<pragma::physics::ICompoundShape> pragma::physics::BtEnvironment::CreateCompoundShape(std::vector<IShape*> &shapes)
 {
-	return CreateSharedPtr<BtCompoundShape>(*this,std::make_shared<btCompoundShape>(),shapes);
+	// TODO
+	return CreateSharedPtr<BtCompoundShape>(*this);
+	//return CreateSharedPtr<BtCompoundShape>(*this,std::make_shared<btCompoundShape>(),shapes);
 }
 std::shared_ptr<pragma::physics::IShape> pragma::physics::BtEnvironment::CreateHeightfieldTerrainShape(uint32_t width,uint32_t length,Scalar maxHeight,uint32_t upAxis,const IMaterial &mat)
 {
@@ -398,11 +598,12 @@ util::TSharedHandle<pragma::physics::ICollisionObject> pragma::physics::BtEnviro
 	AddCollisionObject(*collisionObject);
 	return util::shared_handle_cast<BtCollisionObject,ICollisionObject>(collisionObject);
 }
-util::TSharedHandle<pragma::physics::IRigidBody> pragma::physics::BtEnvironment::CreateRigidBody(float mass,IShape &shape,const Vector3 &localInertia,bool dynamic)
+util::TSharedHandle<pragma::physics::IRigidBody> pragma::physics::BtEnvironment::CreateRigidBody(IShape &shape,bool dynamic)
 {
+	auto mass = shape.GetMass();
 	if(dynamic == false)
 		mass = 0.f;
-	auto collisionObject = CreateSharedHandle<BtRigidBody>(*this,mass,dynamic_cast<BtShape&>(shape),localInertia);
+	auto collisionObject = CreateSharedHandle<BtRigidBody>(*this,dynamic_cast<BtShape&>(shape));
 	AddCollisionObject(*collisionObject);
 	return util::shared_handle_cast<BtRigidBody,IRigidBody>(collisionObject);
 }
@@ -962,6 +1163,7 @@ void pragma::physics::BtEnvironment::RemoveConstraint(IConstraint &constraint)
 }
 void pragma::physics::BtEnvironment::RemoveCollisionObject(ICollisionObject &obj)
 {
+	m_contactMap.RemoveContacts(dynamic_cast<BtCollisionObject&>(obj).GetBtCollisionObject());
 	m_btWorld->removeCollisionObject(&dynamic_cast<BtCollisionObject&>(obj).GetInternalObject());
 	IEnvironment::RemoveCollisionObject(obj);
 
@@ -972,12 +1174,37 @@ void pragma::physics::BtEnvironment::RemoveController(IController &controller)
 	IEnvironment::RemoveController(controller);
 
 }
-pragma::physics::IEnvironment::RemainingDeltaTime pragma::physics::BtEnvironment::StepSimulation(float timeStep,int maxSubSteps,float fixedTimeStep)
+pragma::physics::IEnvironment::RemainingDeltaTime pragma::physics::BtEnvironment::DoStepSimulation(float timeStep,int maxSubSteps,float fixedTimeStep)
 {
 	if(fixedTimeStep == 0.f)
 		return timeStep;
+	for(auto &hController : GetControllers())
+	{
+		if(hController.IsExpired())
+			continue;
+		auto *controller = dynamic_cast<BtController*>(hController.Get());
+		if(controller == nullptr)
+			continue;
+		controller->PreSimulate(timeStep);
+	}
 	g_simEnvironment = this;
 	m_btWorld->stepSimulation(timeStep,maxSubSteps,fixedTimeStep);
+	for(auto &hController : GetControllers())
+	{
+		if(hController.IsExpired())
+			continue;
+		auto *controller = dynamic_cast<BtController*>(hController.Get());
+		if(controller == nullptr)
+			continue;
+		controller->PostSimulate(timeStep);
+	}
+	if(m_btDebugDrawer)
+	{
+		auto *pVisDebugger = GetVisualDebugger();
+		pVisDebugger->Reset();
+		m_btWorld->debugDrawWorld();
+		pVisDebugger->Flush();
+	}
 	g_simEnvironment = nullptr;
 	return fmodf(timeStep,fixedTimeStep);
 }
@@ -988,7 +1215,7 @@ static void update_physics_contact_controller_info(Game *game,int idx,const btCo
 	auto *col = static_cast<pragma::physics::ICollisionObject*>(o->getUserPointer());
 	if(col == nullptr)
 		return;
-	auto *phys = static_cast<PhysObj*>(col->userData);
+	auto *phys = col->GetPhysObj();
 	auto *colOther = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
 	if(phys == nullptr || phys->IsController() == false || (colOther != nullptr && colOther->IsTrigger() == true))
 		return;
@@ -1014,17 +1241,21 @@ static void update_physics_contact_controller_info(Game *game,int idx,const btCo
 		if(bValidCandidate == false)
 			continue;
 		// This will only be applied if the contact point is a better candidate than the controller's previous candidate (for this tick)!
-		static_cast<ControllerPhysObj*>(phys)->SetGroundContactPoint(idx,col,colOther); // TODO: contactPoint
+		auto *controller = static_cast<ControllerPhysObj*>(phys)->GetController();
+		if(controller)
+			dynamic_cast<pragma::physics::BtController*>(controller)->SetGroundContactPoint(contactPoint,idx,o,oOther);
 	}
 }
+
 void pragma::physics::BtEnvironment::SimulationCallback(double)
 {
-	auto t = std::chrono::high_resolution_clock::now();
+	// auto t = std::chrono::high_resolution_clock::now();
 	btDispatcher *dispatcher = m_btWorld->getDispatcher();
 	int numManifolds = dispatcher->getNumManifolds();
 	auto &nw = GetNetworkState();
 	auto *game = nw.GetGameState();
 	auto bClient = game->IsClient();
+	CollisionContactList newContacts {};
 	for(int i=0;i<numManifolds;i++)
 	{
 		btPersistentManifold *contactManifold =  dispatcher->getManifoldByIndexInternal(i);
@@ -1041,6 +1272,7 @@ void pragma::physics::BtEnvironment::SimulationCallback(double)
 			// Physics Sound
 			if(bClient == true)
 			{
+				// TODO: This doesn't belong here! Move to Engine!
 				auto *obj = static_cast<pragma::physics::ICollisionObject*>(o1->getUserPointer());
 				if(obj != nullptr)
 				{
@@ -1084,19 +1316,28 @@ void pragma::physics::BtEnvironment::SimulationCallback(double)
 			}
 			//
 
-			auto *colA = static_cast<pragma::physics::ICollisionObject*>(o0->getUserPointer());
-			PhysObj *physA = (colA != nullptr) ? static_cast<PhysObj*>(colA->userData) : nullptr;
+			newContacts.insert(std::make_pair(o0,o1));
+			newContacts.insert(std::make_pair(o1,o0));
+			m_contactMap.AddContact(*o0,*o1);
+			/*auto *colA = static_cast<pragma::physics::ICollisionObject*>(o0->getUserPointer());
+			PhysObj *physA = (colA != nullptr) ? colA->GetPhysObj() : nullptr;
 			auto *entA = (physA != nullptr) ? &physA->GetOwner()->GetEntity() : nullptr;
-			auto pPhysComponentA = (entA != nullptr) ? entA->GetPhysicsComponent() : util::WeakHandle<pragma::BasePhysicsComponent>{};
+			auto pPhysComponentA = (entA != nullptr) ? entA->GetPhysicsComponent() : nullptr;
 
 			auto *colB = static_cast<pragma::physics::ICollisionObject*>(o1->getUserPointer());
-			PhysObj *physB = (colB != nullptr) ? static_cast<PhysObj*>(colB->userData) : nullptr;
+			PhysObj *physB = (colB != nullptr) ? colB->GetPhysObj() : nullptr;
 			auto *entB = (physB != nullptr) ? &physB->GetOwner()->GetEntity() : nullptr;
-			auto pPhysComponentB = (entB != nullptr) ? entB->GetPhysicsComponent() : util::WeakHandle<pragma::BasePhysicsComponent>{};
-			if(pPhysComponentA.valid() && pPhysComponentB.valid())
+			auto pPhysComponentB = (entB != nullptr) ? entB->GetPhysicsComponent() : nullptr;
+			if(pPhysComponentA && pPhysComponentB)*/
 			{
+#if 0
 				bool bCallbackA = pPhysComponentA->GetCollisionCallbacksEnabled();
 				bool bCallbackB = pPhysComponentB->GetCollisionCallbacksEnabled();
+
+
+
+
+
 				if(bCallbackA == true || bCallbackB == true)
 				{
 					auto *touchComponentA = static_cast<pragma::BaseTouchComponent*>(entA->FindComponent("touch").get());
@@ -1150,13 +1391,16 @@ void pragma::physics::BtEnvironment::SimulationCallback(double)
 						}
 					}
 				}
+#endif
 			}
 		}
 	}
+
+	m_contactMap.UpdateContacts(newContacts);
 }
 
 util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment::CreateCapsuleController(
-	float halfWidth,float halfHeight,float stepHeight,float slopeLimitDeg,const Transform &startTransform
+	float halfWidth,float halfHeight,float stepHeight,float slopeLimitDeg,const umath::Transform &startTransform
 )
 {
 	auto shape = CreateCapsuleShape(halfWidth,halfHeight,GetGenericMaterial());
@@ -1169,18 +1413,19 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 	auto &btGhostObject = ghostObject->GetInternalObject();
 	auto &btShape = dynamic_cast<BtConvexShape&>(*shape).GetBtConvexShape();
 
-	auto controller = std::unique_ptr<PhysKinematicCharacterController>(new PhysKinematicCharacterController{&btGhostObject,&btShape,btScalar(stepHeight *WORLD_SCALE)});
+	auto controller = std::unique_ptr<PhysKinematicCharacterController>(new PhysKinematicCharacterController{&btGhostObject,&btShape,btScalar(stepHeight *WORLD_SCALE),btVector3{0.0,1.0,0.0}});
 	controller->setGravity({0.0,0.0,0.0});
 	controller->setUseGhostSweepTest(false); // If set to true => causes penetration issues with convex meshes, resulting in bouncy physics
 	controller->setMaxSlope(umath::deg_to_rad(slopeLimitDeg));
 	AddAction(controller.get());
-	auto btController =  util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller)));
+	Vector3 halfExtents {halfWidth,halfHeight,halfWidth};
+	auto btController =  util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,std::dynamic_pointer_cast<BtConvexShape>(shape),util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller),halfExtents,IController::ShapeType::Capsule));
 	AddController(*btController);
 	return btController;
 }
 
 util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment::CreateBoxController(
-	const Vector3 &halfExtents,float stepHeight,float slopeLimitDeg,const Transform &startTransform
+	const Vector3 &halfExtents,float stepHeight,float slopeLimitDeg,const umath::Transform &startTransform
 )
 {
 	auto shape = CreateBoxShape(halfExtents,GetGenericMaterial());
@@ -1200,6 +1445,69 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 
 	auto *world = GetWorld();
 	AddAction(controller.get());
-	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller)));
+	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,std::dynamic_pointer_cast<BtConvexShape>(shape),util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller),halfExtents,IController::ShapeType::Capsule));
 }
+
+////////////////
+
+void pragma::physics::ContactMap::UpdateContacts(const CollisionContactList &newContacts)
+{
+	for(auto it=m_contacts.begin();it!=m_contacts.end();)
+	{
+		auto it2 = newContacts.find(*it);
+		if(it2 == newContacts.end())
+		{
+			it = ClearContact(it);
+			continue;
+		}
+		++it;
+	}
+}
+void pragma::physics::ContactMap::AddContact(const btCollisionObject &a,const btCollisionObject &b)
+{
+	auto pair = std::make_pair(&a,&b);
+	auto it = m_contacts.find(pair);
+	if(it != m_contacts.end())
+		return;
+	m_contacts.insert(pair);
+	auto *ao = static_cast<pragma::physics::ICollisionObject*>(a.getUserPointer());
+	auto *bo = static_cast<pragma::physics::ICollisionObject*>(b.getUserPointer());
+	if(ao && bo)
+		ao->OnStartTouch(*bo);
+	AddContact(b,a);
+}
+void pragma::physics::ContactMap::RemoveContacts(const btCollisionObject &o)
+{
+	// TODO: This isn't very efficient...
+	for(auto it=m_contacts.begin();it!=m_contacts.end();)
+	{
+		if(it->first == &o || it->second == &o)
+			it = ClearContact(it);
+		else
+			++it;
+	}
+}
+pragma::physics::CollisionContactList::iterator pragma::physics::ContactMap::ClearContact(CollisionContactList::iterator it)
+{
+	auto *ao = static_cast<pragma::physics::ICollisionObject*>(it->first->getUserPointer());
+	auto *bo = static_cast<pragma::physics::ICollisionObject*>(it->second->getUserPointer());
+	if(ao && bo)
+		ao->OnEndTouch(*bo);
+	return m_contacts.erase(it);
+}
+void pragma::physics::ContactMap::RemoveContact(const btCollisionObject &a,const btCollisionObject &b)
+{
+	auto it = m_contacts.find(std::make_pair(&a,&b));
+	if(it != m_contacts.end())
+		it = ClearContact(it);
+	it = m_contacts.find(std::make_pair(&b,&a));
+	if(it != m_contacts.end())
+		it = ClearContact(it);
+}
+pragma::physics::ContactMap::~ContactMap()
+{
+	for(auto it=m_contacts.begin();it!=m_contacts.end();)
+		it = ClearContact(it);
+}
+
 #pragma optimize("",on)

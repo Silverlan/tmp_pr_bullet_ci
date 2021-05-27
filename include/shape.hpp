@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #ifndef __PR_PX_SHAPE_HPP__
 #define __PR_PX_SHAPE_HPP__
 
@@ -18,20 +22,22 @@ namespace pragma::physics
 		virtual void GetAABB(Vector3 &min,Vector3 &max) const override;
 		virtual void GetBoundingSphere(Vector3 &outCenter,float &outRadius) const override;
 
-		virtual void SetTrigger(bool bTrigger) override;
-		virtual bool IsTrigger() const override;
+		virtual void SetLocalPose(const umath::Transform &t) override;
+		virtual umath::Transform GetLocalPose() const override;
 
-		virtual void SetLocalPose(const Transform &t) override;
-		virtual const Transform &GetLocalPose() const override;
+		virtual void ApplySurfaceMaterial(IMaterial &mat) override;
+		virtual void SetMass(float mass) override;
+		virtual float GetMass() const override;
 
 		btCollisionShape &GetBtShape();
 		const btCollisionShape &GetBtShape() const;
 	protected:
+		BtShape(IEnvironment &env,btCollisionShape *shape,bool bOwns=true);
+		virtual void UpdateShape() {}
 		std::shared_ptr<btCollisionShape> m_shape;
 	private:
-		BtShape(IEnvironment &env,btCollisionShape *shape,bool bOwns=true);
 		btCollisionShape *m_externalShape;
-		Transform m_localPose = {};
+		umath::Transform m_localPose = {};
 		bool m_bTrigger = false;
 	};
 	class BtConvexShape
@@ -58,8 +64,8 @@ namespace pragma::physics
 		virtual void AddTriangle(uint32_t idx0,uint32_t idx1,uint32_t idx2) override;
 		virtual void ReservePoints(uint32_t numPoints) override;
 		virtual void ReserveTriangles(uint32_t numTris) override;
-		virtual void Build() override;
 	private:
+		virtual void DoBuild() override;
 		BtConvexHullShape(IEnvironment &env,const std::shared_ptr<btConvexHullShape> &shape);
 	};
 
@@ -70,9 +76,13 @@ namespace pragma::physics
 	public:
 		friend IEnvironment;
 		btCompoundShape &GetBtCompoundShape();
-		virtual void AddShape(pragma::physics::IShape &shape) override;
+		virtual bool IsValid() const override;
+		virtual void SetMass(float mass) override;
+		virtual float GetMass() const override;
+		virtual void GetAABB(Vector3 &min,Vector3 &max) const override;
 	protected:
-		BtCompoundShape(IEnvironment &env,const std::shared_ptr<btCompoundShape> &btShape,const std::vector<IShape*> &shapes={});
+		BtCompoundShape(IEnvironment &env);
+		virtual void UpdateShape() override;
 	};
 
 	class BtHeightfield
@@ -99,7 +109,6 @@ namespace pragma::physics
 		friend IEnvironment;
 		btTriangleIndexVertexArray *GetBtIndexVertexArray();
 
-		virtual void Build(const std::vector<SurfaceMaterial> *materials=nullptr) override;
 		void GenerateInternalEdgeInfo();
 
 		virtual void AddTriangle(const Vector3 &a,const Vector3 &b,const Vector3 &c,const SurfaceMaterial *mat=nullptr) override;
@@ -107,8 +116,10 @@ namespace pragma::physics
 		virtual void CalculateLocalInertia(float mass,Vector3 *localInertia) const override;
 	private:
 		BtTriangleShape(IEnvironment &env,const std::shared_ptr<btBvhTriangleMeshShape> &shape=nullptr);
+		virtual void DoBuild(const std::vector<SurfaceMaterial> *materials=nullptr) override;
 		std::unique_ptr<btTriangleIndexVertexArray> m_triangleArray;
 		std::unique_ptr<btTriangleInfoMap> m_infoMap = nullptr;
+		std::vector<btVector3> m_btVerts;
 	};
 };
 

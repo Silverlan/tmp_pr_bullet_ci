@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #ifndef __PR_BT_COLLISION_OBJECT_HPP__
 #define __PR_BT_COLLISION_OBJECT_HPP__
 
@@ -21,9 +25,14 @@ namespace pragma::physics
 		: virtual public ICollisionObject
 	{
 	public:
+		enum class BtStateFlags : uint32_t
+		{
+			None = 0u,
+			CcdEnabled = 1u
+		};
 		friend IEnvironment;
 		btCollisionObject &GetInternalObject() const;
-		virtual void Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle) override;
+		virtual void InitializeLuaHandle(lua_State *l,const util::TWeakSharedHandle<IBase> &handle) override;
 		btCollisionObject &GetBtCollisionObject();
 		virtual BtRigidBody *GetBtRigidBody();
 		const BtRigidBody *GetBtRigidBody() const;
@@ -32,7 +41,6 @@ namespace pragma::physics
 		virtual BtGhostObject *GetBtGhostObject();
 		const BtGhostObject *GetBtGhostObject() const;
 
-		virtual void Spawn() override;
 		int GetCollisionFlags() const;
 		void SetCollisionFlags(int flags);
 
@@ -44,9 +52,16 @@ namespace pragma::physics
 		virtual bool IsStatic() const override;
 		virtual void SetStatic(bool b) override;
 
+		virtual void SetTrigger(bool bTrigger) override;
+		virtual bool IsTrigger() const override;
+
+		virtual void TransformLocalPose(const umath::Transform &t) override;
+
+		virtual void SetSleepReportEnabled(bool reportEnabled) override;
+		virtual bool IsSleepReportEnabled() const override;
+
 		virtual void WakeUp(bool forceActivation=false) override;
 		virtual void PutToSleep() override;
-		virtual bool IsAsleep() const override;
 		virtual void SetContactProcessingThreshold(float threshold) override;
 		virtual void ApplyCollisionShape(pragma::physics::IShape *optShape) override;
 		virtual void DoSetCollisionFilterGroup(CollisionMask group) override;
@@ -58,20 +73,24 @@ namespace pragma::physics
 		virtual void SetPos(const Vector3 &pos) override;
 		virtual Quat GetRotation() const override;
 		virtual void SetRotation(const Quat &rot) override;
-		virtual Transform GetWorldTransform() override;
-		virtual void SetWorldTransform(const Transform &t) override;
-
-		virtual bool IsTrigger() override;
+		virtual umath::Transform GetWorldTransform() override;
+		virtual void SetWorldTransform(const umath::Transform &t) override;
 
 		virtual void SetSimulationEnabled(bool b) override;
 		virtual bool IsSimulationEnabled() const override;
 		virtual void SetCollisionsEnabled(bool enabled) override;
 	protected:
 		BtCollisionObject(IEnvironment &env,std::unique_ptr<btCollisionObject> o,IShape &shape);
+		virtual void DoSpawn() override;
 		void UpdateCCD();
 		BtEnvironment &GetBtEnv() const;
 		virtual void DoAddWorldObject() override;
 		std::unique_ptr<btCollisionObject> m_collisionObject = nullptr;
+		struct {
+			bool simulationEnabled = true;
+			CollisionMask lastCollisionGroup = CollisionMask::None;
+		} m_simState {};
+		BtStateFlags m_btStateFlags = BtStateFlags::None;
 	};
 
 	class BtShape;
@@ -89,25 +108,25 @@ namespace pragma::physics
 		virtual Vector3 GetPos() const override;
 		virtual Quat GetRotation() const override;
 		virtual void SetRotation(const Quat &rot) override;
-		virtual void ApplyForce(const Vector3 &force) override;
-		virtual void ApplyForce(const Vector3 &force,const Vector3 &relPos) override;
-		virtual void ApplyImpulse(const Vector3 &impulse) override;
-		virtual void ApplyImpulse(const Vector3 &impulse,const Vector3 &relPos) override;
-		virtual void ApplyTorque(const Vector3 &torque) override;
-		virtual void ApplyTorqueImpulse(const Vector3 &torque) override;
+		virtual void ApplyForce(const Vector3 &force,bool autoWake=true) override;
+		virtual void ApplyForce(const Vector3 &force,const Vector3 &relPos,bool autoWake=true) override;
+		virtual void ApplyImpulse(const Vector3 &impulse,bool autoWake=true) override;
+		virtual void ApplyImpulse(const Vector3 &impulse,const Vector3 &relPos,bool autoWake=true) override;
+		virtual void ApplyTorque(const Vector3 &torque,bool autoWake=true) override;
+		virtual void ApplyTorqueImpulse(const Vector3 &torque,bool autoWake=true) override;
 		virtual void ClearForces() override;
-		virtual Vector3 GetTotalForce() override;
-		virtual Vector3 GetTotalTorque() override;
+		virtual Vector3 GetTotalForce() const override;
+		virtual Vector3 GetTotalTorque() const override;
 		virtual void SetMassProps(float mass,const Vector3 &inertia) override;
 		virtual float GetMass() const override;
 		virtual void SetMass(float mass) override;
-		virtual Vector3 &GetInertia() override;
+		virtual Vector3 GetInertia() override;
 		virtual Mat3 GetInvInertiaTensorWorld() const override;
 		virtual void SetInertia(const Vector3 &inertia) override;
 		virtual Vector3 GetLinearVelocity() const override;
 		virtual Vector3 GetAngularVelocity() const override;
-		virtual void SetLinearVelocity(const Vector3 &vel) override;
-		virtual void SetAngularVelocity(const Vector3 &vel) override;
+		virtual void SetLinearVelocity(const Vector3 &vel,bool autoWake=true) override;
+		virtual void SetAngularVelocity(const Vector3 &vel,bool autoWake=true) override;
 		virtual void SetLinearFactor(const Vector3 &factor) override;
 		virtual void SetAngularFactor(const Vector3 &factor) override;
 		virtual Vector3 GetLinearFactor() const override;
@@ -123,14 +142,19 @@ namespace pragma::physics
 		virtual bool IsStatic() const override;
 		virtual void SetStatic(bool b) override;
 
+		virtual void SetMassAndUpdateInertia(float mass) override;
+		virtual Vector3 GetCenterOfMass() const override;
+		virtual void SetCenterOfMassOffset(const Vector3 &offset) override;
+		virtual Vector3 GetCenterOfMassOffset() const override;
+
 		virtual void SetKinematic(bool bKinematic) override;
 		virtual bool IsKinematic() const override;
 
 		virtual void PreSimulate() override;
 		virtual void PostSimulate() override;
 	protected:
-		BtRigidBody(IEnvironment &env,std::unique_ptr<btRigidBody> body,float mass,IShape &shape,const Vector3 &localInertia);
-		BtRigidBody(IEnvironment &env,float mass,BtShape &shape,const Vector3 &localInertia);
+		BtRigidBody(IEnvironment &env,std::unique_ptr<btRigidBody> body,IShape &shape);
+		BtRigidBody(IEnvironment &env,BtShape &shape);
 		struct KinematicData
 		{
 			Vector3 linearVelocity = {};
@@ -177,7 +201,7 @@ namespace pragma::physics
 		virtual void SetPos(const Vector3 &pos) override;
 		virtual void SetRotation(const Quat &rot) override;
 		virtual Quat GetRotation() const override;
-		virtual void SetWorldTransform(const Transform &t) override;
+		virtual void SetWorldTransform(const umath::Transform &t) override;
 
 		virtual void UpdateLinearVelocity() override;
 
@@ -293,5 +317,6 @@ namespace pragma::physics
 		virtual void RemoveWorldObject() override;
 	};
 };
+REGISTER_BASIC_BITWISE_OPERATORS(pragma::physics::BtCollisionObject::BtStateFlags)
 
 #endif

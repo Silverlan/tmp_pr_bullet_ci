@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "overlapfiltercallback.hpp"
 #include "collision_object.hpp"
 #include <pragma/physics/physobj.h>
@@ -67,8 +71,8 @@ bool PhysOverlapFilterCallback::needBroadphaseCollision(btBroadphaseProxy* proxy
 		auto *t2 = static_cast<pragma::physics::ICollisionObject*>(o2->getUserPointer());
 		if(t1 != nullptr && t2 != nullptr)
 		{
-			auto *phys1 = static_cast<PhysObj*>(t1->userData);
-			auto *phys2 = static_cast<PhysObj*>(t2->userData);
+			auto *phys1 = t1->GetPhysObj();
+			auto *phys2 = t2->GetPhysObj();
 			if(phys1 != nullptr && phys2 != nullptr)
 			{
 				bShouldCollide = (phys1->GetCollisionFilter() &phys2->GetCollisionFilterMask()) != CollisionMask::None;
@@ -77,8 +81,8 @@ bool PhysOverlapFilterCallback::needBroadphaseCollision(btBroadphaseProxy* proxy
 				auto pPhysComponent1 = ent1->GetPhysicsComponent();
 				auto *ent2 = &phys2->GetOwner()->GetEntity();
 				auto pPhysComponent2 = ent2->GetPhysicsComponent();
-				return (pPhysComponent1.expired() || pPhysComponent1->ShouldCollide(phys1,t1,ent2,phys2,t2,bShouldCollide)) && 
-					(pPhysComponent2.expired() || pPhysComponent2->ShouldCollide(phys2,t2,ent1,phys1,t1,bShouldCollide));
+				return (!pPhysComponent1 || pPhysComponent1->ShouldCollide(phys1,t1,ent2,phys2,t2,bShouldCollide)) && 
+					(!pPhysComponent2 || pPhysComponent2->ShouldCollide(phys2,t2,ent1,phys1,t1,bShouldCollide));
 			}
 		}
 	}

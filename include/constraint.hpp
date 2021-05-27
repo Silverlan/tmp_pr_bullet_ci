@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #ifndef __PR_BT_CONSTRAINT_HPP__
 #define __PR_BT_CONSTRAINT_HPP__
 
@@ -32,6 +36,24 @@ namespace pragma::physics
 		btTypedConstraint &GetInternalObject() const;
 		btTypedConstraint &GetBtConstraint() const;
 
+		virtual void SetEnabled(bool b) override;
+		virtual bool IsEnabled() const override;
+		virtual bool IsBroken() const override;
+		virtual void Break() override;
+
+		virtual float GetBreakForce() const override;
+		virtual void SetBreakForce(float threshold) override;
+		virtual float GetBreakTorque() const override;
+		virtual void SetBreakTorque(float torque) override;
+
+		virtual void SetSoftness(float softness) override;
+		virtual void SetDamping(float damping) override;
+		virtual void SetRestitution(float restitution) override;
+
+		virtual float GetSoftness() const override;
+		virtual float GetDamping() const override;
+		virtual float GetRestitution() const override;
+
 		virtual BtFixedConstraint *GetBtFixedConstraint();
 		const BtFixedConstraint *GetBtFixedConstraint() const;
 		virtual BtBallSocketConstraint *GetBtBallSocketConstraint();
@@ -47,22 +69,15 @@ namespace pragma::physics
 		virtual BtDoFSpringConstraint *GetBtDoFSpringConstraint();
 		const BtDoFSpringConstraint *GetBtDoFSpringConstraint() const;
 
-		virtual void Initialize(lua_State *l,const util::TWeakSharedHandle<IBase> &handle) override;
-		virtual void SetEnabled(bool b) override;
-		virtual bool IsEnabled() const override;
-		virtual void EnableCollisions() override;
-		virtual void DisableCollisions() override;
-		virtual pragma::physics::IRigidBody *GetSourceObject() override;
-		virtual pragma::physics::IRigidBody *GetTargetObject() override;
-
-		virtual void SetOverrideSolverIterationCount(int32_t count) override;
-		virtual int32_t GetOverrideSolverIterationCount() const override;
-		virtual float GetBreakingImpulseThreshold() const override;
-		virtual void SetBreakingImpulseThreshold(float threshold) override;
+		virtual void Initialize() override;
+		virtual pragma::physics::IRigidBody *GetSourceActor() override;
+		virtual pragma::physics::IRigidBody *GetTargetActor() override;
 	protected:
 		BtConstraint(IEnvironment &env,std::unique_ptr<btTypedConstraint> c);
 		BtEnvironment &GetBtEnv() const;
 		virtual void DoSetCollisionsEnabled(Bool b) override;
+		virtual void RemoveWorldObject() override;
+		virtual void DoAddWorldObject() override;
 		std::unique_ptr<btTypedConstraint> m_constraint = nullptr;
 	};
 
@@ -98,6 +113,9 @@ namespace pragma::physics
 		friend IEnvironment;
 		btHingeConstraint &GetInternalObject() const;
 		virtual BtHingeConstraint *GetBtHingeConstraint() override;
+		virtual void SetLimit(umath::Radian lowerLimit,umath::Radian upperLimit) override;
+		virtual std::pair<umath::Radian,umath::Radian> GetLimit() const override;
+		virtual void DisableLimit() override;
 	protected:
 		BtHingeConstraint(IEnvironment &env,std::unique_ptr<btHingeConstraint> constraint);
 		void SetLimit(float low,float high,float softness=0.9f,float biasFactor=0.3f,float relaxationFactor=1.f);
@@ -111,6 +129,9 @@ namespace pragma::physics
 		friend IEnvironment;
 		btSliderConstraint &GetInternalObject() const;
 		virtual BtSliderConstraint *GetBtSliderConstraint() override;
+		virtual void SetLimit(float lowerLimit,float upperLimit) override;
+		virtual void DisableLimit() override;
+		virtual std::pair<float,float> GetLimit() const override;
 	protected:
 		BtSliderConstraint(IEnvironment &env,std::unique_ptr<btSliderConstraint> constraint);
 	};
@@ -122,7 +143,9 @@ namespace pragma::physics
 	public:
 		friend IEnvironment;
 		btConeTwistConstraint &GetInternalObject() const;
-		virtual void SetLimit(float swingSpan1,float swingSpan2,float twistSpan,float softness=1.f,float biasFactor=0.3f,float relaxationFactor=1.f) override;
+		virtual void SetLimit(const Vector3 &lowerLimits,const Vector3 &upperLimits) override;
+		virtual void SetLimit(float swingSpan1,float swingSpan2,float twistSpan) override;
+		virtual void GetLimit(float &outSwingSpan1,float &outSwingSpan2,float &outTwistSpan) override;
 		virtual BtConeTwistConstraint *GetBtConeTwistConstraint() override;
 	protected:
 		BtConeTwistConstraint(IEnvironment &env,std::unique_ptr<btConeTwistConstraint> constraint);
@@ -211,17 +234,17 @@ namespace pragma::physics
 		virtual BtDoFSpringConstraint *GetBtDoFSpringConstraint() override;
 
 		virtual void CalculateTransforms() override;
-		virtual void CalculateTransforms(const Transform &frameA,const Transform &frameB) override;
+		virtual void CalculateTransforms(const umath::Transform &frameA,const umath::Transform &frameB) override;
 		btRotationalLimitMotor2 *GetRotationalLimitMotor(pragma::Axis index) const;
 		btTranslationalLimitMotor2 *GetTranslationalLimitMotor() const;
-		virtual Transform GetCalculatedTransformA() const override;
-		virtual Transform GetCalculatedTransformB() const override;
-		virtual Transform GetFrameOffsetA() const override;
-		virtual Transform GetFrameOffsetB() const override;
+		virtual umath::Transform GetCalculatedTransformA() const override;
+		virtual umath::Transform GetCalculatedTransformB() const override;
+		virtual umath::Transform GetFrameOffsetA() const override;
+		virtual umath::Transform GetFrameOffsetB() const override;
 		virtual Vector3 GetAxis(pragma::Axis axisIndex) const override;
 		virtual double GetAngle(pragma::Axis axisIndex) const override;
 		virtual double GetRelativePivotPosition(pragma::Axis axisIndex) const override;
-		virtual void SetFrames(const Transform &frameA,const Transform &frameB) override;
+		virtual void SetFrames(const umath::Transform &frameA,const umath::Transform &frameB) override;
 		virtual void SetLinearLowerLimit(const Vector3 &linearLower) override;
 		virtual Vector3 GetLinearLowerLimit() const override;
 		virtual void SetLinearUpperLimit(const Vector3 &linearUpper) override;

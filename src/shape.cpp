@@ -1,8 +1,12 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "shape.hpp"
 #include "environment.hpp"
 #include <pragma/physics/collisionmesh.h>
 #include <pragma/math/surfacematerial.h>
-#include <pragma/physics/physedgeutility.h>
+#include <BulletCollision/CollisionDispatch/btInternalEdgeUtility.h>
 #include <BulletCollision/CollisionShapes/btMultimaterialTriangleMeshShape.h>
 #include <BulletCollision/CollisionShapes/btTriangleIndexVertexMaterialArray.h>
 
@@ -30,11 +34,26 @@ void pragma::physics::BtShape::GetBoundingSphere(Vector3 &outCenter,float &outRa
 	outRadius = radius /BtEnvironment::WORLD_SCALE;
 }
 
-void pragma::physics::BtShape::SetTrigger(bool bTrigger) {m_bTrigger = bTrigger;}
-bool pragma::physics::BtShape::IsTrigger() const {return m_bTrigger;}
+// TODO
+// void pragma::physics::BtShape::SetTrigger(bool bTrigger) {m_bTrigger = bTrigger;}
+// bool pragma::physics::BtShape::IsTrigger() const {return m_bTrigger;}
 
-void pragma::physics::BtShape::SetLocalPose(const Transform &t) {m_localPose = t;}
-const pragma::physics::Transform &pragma::physics::BtShape::GetLocalPose() const {return m_localPose;}
+void pragma::physics::BtShape::SetLocalPose(const umath::Transform &t) {m_localPose = t;}
+umath::Transform pragma::physics::BtShape::GetLocalPose() const {return m_localPose;}
+
+void pragma::physics::BtShape::ApplySurfaceMaterial(IMaterial &mat)
+{
+	// TODO
+}
+void pragma::physics::BtShape::SetMass(float mass)
+{
+	// TODO
+}
+float pragma::physics::BtShape::GetMass() const
+{
+	// TODO
+	return {};
+}
 
 void pragma::physics::BtShape::GetAABB(Vector3 &min,Vector3 &max) const
 {
@@ -63,7 +82,12 @@ void pragma::physics::BtShape::CalculateLocalInertia(float mass,Vector3 *localIn
 	localInertia->z = static_cast<float>(btInertia.z() /BtEnvironment::WORLD_SCALE);
 }
 
-btCollisionShape &pragma::physics::BtShape::GetBtShape() {return (m_externalShape != nullptr) ? *m_externalShape : *m_shape;}
+btCollisionShape &pragma::physics::BtShape::GetBtShape()
+{
+	if(!m_shape && !m_externalShape)
+		UpdateShape();
+	return (m_externalShape != nullptr) ? *m_externalShape : *m_shape;
+}
 const btCollisionShape &pragma::physics::BtShape::GetBtShape() const {return const_cast<BtShape*>(this)->GetBtShape();}
 
 //////////////////////////////////
@@ -92,7 +116,7 @@ void pragma::physics::BtConvexHullShape::AddPoint(const Vector3 &point)
 void pragma::physics::BtConvexHullShape::AddTriangle(uint32_t idx0,uint32_t idx1,uint32_t idx2) {}
 void pragma::physics::BtConvexHullShape::ReservePoints(uint32_t numPoints) {}
 void pragma::physics::BtConvexHullShape::ReserveTriangles(uint32_t numTris) {}
-void pragma::physics::BtConvexHullShape::Build() {}
+void pragma::physics::BtConvexHullShape::DoBuild() {}
 
 //////////////////////////////////
 
@@ -149,33 +173,38 @@ void pragma::physics::BtTriangleShape::AddTriangle(const Vector3 &a,const Vector
 
 btTriangleIndexVertexArray *pragma::physics::BtTriangleShape::GetBtIndexVertexArray() {return m_triangleArray.get();}
 
-void pragma::physics::BtTriangleShape::Build(const std::vector<SurfaceMaterial> *materials)
+void pragma::physics::BtTriangleShape::DoBuild(const std::vector<SurfaceMaterial> *materials)
 {
 	m_shape = nullptr;
 	if(m_triangles.empty() || m_vertices.empty())
 		return;
-	std::vector<btVector3> btVerts {};
+	auto &btVerts = m_btVerts;
 	btVerts.reserve(m_vertices.size());
 	for(auto &v : m_vertices)
-		btVerts.push_back(btVector3(v.x,v.y,v.z));
+		btVerts.push_back(BtEnvironment::ToBtPosition(v));
 	btBvhTriangleMeshShape *shape = nullptr;
 	if(materials == nullptr)
 	{
-		m_triangleArray = std::make_unique<btTriangleIndexVertexArray>(
-			static_cast<int>(m_triangles.size() /3),reinterpret_cast<int32_t*>(m_triangles.data()),static_cast<int>(sizeof(int) *3),
-			static_cast<int>(btVerts.size()),reinterpret_cast<btScalar*>(btVerts.data()),static_cast<int>(sizeof(btVector3))
-		);
+		btIndexedMesh mIndexedMesh {};
+		mIndexedMesh.m_numTriangles = m_triangles.size() /3;
+		mIndexedMesh.m_triangleIndexBase = reinterpret_cast<unsigned char*>(m_triangles.data());
+		mIndexedMesh.m_triangleIndexStride = sizeof(m_triangles[0]) *3;
+		mIndexedMesh.m_numVertices = btVerts.size();
+		mIndexedMesh.m_vertexBase = reinterpret_cast<unsigned char*>(btVerts.data());
+		mIndexedMesh.m_vertexStride = sizeof(btVerts[0]);
+		m_triangleArray = std::make_unique<btTriangleIndexVertexArray>();
+		m_triangleArray->addIndexedMesh(mIndexedMesh,PHY_INTEGER);
 		shape = new btBvhTriangleMeshShape(m_triangleArray.get(),false);
 	}
 	else
 	{
 		m_triangleArray = std::make_unique<btTriangleIndexVertexMaterialArray>(
-			static_cast<int>(m_triangles.size() /3),reinterpret_cast<int32_t*>(m_triangles.data()),static_cast<int>(sizeof(int) *3),
-			static_cast<int>(btVerts.size()),reinterpret_cast<btScalar*>(btVerts.data()),static_cast<int>(sizeof(btVector3)),
-			static_cast<int>(materials->size()),(unsigned char*)(&(*materials)[0]),static_cast<int>(sizeof(SurfaceMaterial)),
-			&m_faceMaterials[0],static_cast<int>(sizeof(int))
+			m_triangles.size() /3,reinterpret_cast<int32_t*>(m_triangles.data()),sizeof(m_triangles[0]) *3,
+			btVerts.size(),reinterpret_cast<btScalar*>(btVerts.data()),sizeof(btVerts[0]),
+			materials->size(),reinterpret_cast<unsigned char*>(const_cast<SurfaceMaterial*>(materials->data())),sizeof(SurfaceMaterial),
+			m_faceMaterials.data(),sizeof(m_faceMaterials[0])
 		);
-		shape = new btMultimaterialTriangleMeshShape(m_triangleArray.get(),false);
+		shape = new btMultimaterialTriangleMeshShape(m_triangleArray.get(),true);
 	}
 	m_bBuilt = true;
 	m_shape = std::shared_ptr<btCollisionShape>(shape);
@@ -195,13 +224,36 @@ void pragma::physics::BtTriangleShape::CalculateLocalInertia(float,Vector3 *loca
 
 //////////////////////////////////
 
-pragma::physics::BtCompoundShape::BtCompoundShape(IEnvironment &env,const std::shared_ptr<btCompoundShape> &btShape,const std::vector<IShape*> &shapes)
-	: BtShape{env,btShape},IShape{env},ICompoundShape{env,shapes}
+pragma::physics::BtCompoundShape::BtCompoundShape(IEnvironment &env)
+	: IShape{env},ICompoundShape{env},BtShape{env,nullptr}
 {}
+void pragma::physics::BtCompoundShape::UpdateShape()
+{
+	if(m_shape)
+		return;
+	auto &shapes = GetShapes();
+	auto compoundShape = std::make_shared<btCompoundShape>(true,shapes.size());
+	m_shape = compoundShape;
+	for(auto &shapeInfo : GetShapes())
+	{
+		auto *btShape = dynamic_cast<BtShape*>(shapeInfo.shape.get());
+		compoundShape->addChildShape(BtEnvironment::CreateBtTransform(shapeInfo.localPose),&btShape->GetBtShape());
+	}
+}
 btCompoundShape &pragma::physics::BtCompoundShape::GetBtCompoundShape() {return static_cast<btCompoundShape&>(GetBtShape());}
-void pragma::physics::BtCompoundShape::AddShape(pragma::physics::IShape &shape)
+bool pragma::physics::BtCompoundShape::IsValid() const
+{
+	auto &shapes = GetShapes();
+	return std::find_if(shapes.begin(),shapes.end(),[](const pragma::physics::ICompoundShape::ShapeInfo &shapeInfo) {
+		return shapeInfo.shape->IsValid() == false;
+	}) == shapes.end();
+}
+void pragma::physics::BtCompoundShape::SetMass(float mass) {ICompoundShape::SetMass(mass);}
+float pragma::physics::BtCompoundShape::GetMass() const {return ICompoundShape::GetMass();}
+void pragma::physics::BtCompoundShape::GetAABB(Vector3 &min,Vector3 &max) const {return ICompoundShape::GetAABB(min,max);}
+/*void pragma::physics::BtCompoundShape::AddShape(pragma::physics::IShape &shape,const umath::Transform &localPose)
 {
 	auto &t = shape.GetLocalPose();
 	GetBtCompoundShape().addChildShape(static_cast<BtEnvironment&>(m_physEnv).CreateBtTransform(t),&dynamic_cast<BtShape&>(shape).GetBtShape());
 	m_shapes.push_back(std::static_pointer_cast<IShape>(shape.shared_from_this()));
-}
+}*/

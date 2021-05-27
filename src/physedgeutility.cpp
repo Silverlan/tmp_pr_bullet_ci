@@ -1,4 +1,4 @@
-#include "pragma/physics/physedgeutility.h"
+#include "physedgeutility.hpp"
 
 #include "BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h"
 #include "BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h"

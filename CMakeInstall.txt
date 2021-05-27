@@ -1,0 +1,3 @@
+pragma_install_create_directory(modules/physics_engines)
+pragma_install_create_directory(modules/physics_engines/bullet)
+pragma_install_lib("${CMAKE_CURRENT_BINARY_DIR}/modules/pr_bullet/${CONFIG_BUILD_TYPE}/pr_bullet${OS_LIB_BIN_EXT}" "modules/physics_engines/bullet/" OPTIONAL)

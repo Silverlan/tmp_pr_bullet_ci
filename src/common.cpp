@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include "common.hpp"
 
 btVector3 uvec::create_bt(const Vector3 &v) {return btVector3{v.x,v.y,v.z};}
