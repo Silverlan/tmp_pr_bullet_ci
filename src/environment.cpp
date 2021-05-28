@@ -21,6 +21,7 @@
 #include <pragma/util/util_game.hpp>
 #include <pragma/physics/physsoftbodyinfo.hpp>
 #include <pragma/physics/raytraces.h>
+#include <pragma/physics/raycast_filter.hpp>
 #include <pragma/entities/components/base_physics_component.hpp>
 #include <pragma/entities/trigger/base_trigger_touch.hpp>
 #include <pragma/entities/baseentity.h>
@@ -65,7 +66,7 @@ public:
 			}
 			else
 			{
-				auto *c = static_cast<pragma::physics::BtCollisionObject*>(colObj->getUserPointer());
+				auto *c = static_cast<pragma::physics::ICollisionObject*>(colObj->getUserPointer());
 				if(c != nullptr && c->ShouldUpdateAABB())
 				{
 					updateSingleAabb(colObj);
@@ -940,9 +941,60 @@ util::TSharedHandle<pragma::physics::ISoftBody> pragma::physics::BtEnvironment::
 }
 void pragma::physics::BtEnvironment::AddAction(btActionInterface *action) {m_btWorld->addAction(action);}
 
+namespace pragma::physics
+{
+	template<class TBase>
+		class PhysRayResultCallback
+		: public TBase
+	{
+	public:
+		PhysRayResultCallback(pragma::physics::IRayCastFilterCallback *filter,const btVector3 &rayFromWorld,const btVector3 &rayToWorld)
+			: m_filter{filter},TBase{rayFromWorld,rayToWorld}
+		{}
+		virtual btScalar addSingleResult(btCollisionWorld::LocalRayResult &rayResult,bool normalInWorldSpace) override
+		{
+			auto *obj = rayResult.m_collisionObject;
+			auto *colObj = static_cast<pragma::physics::ICollisionObject*>(obj->getUserPointer());
+			if(colObj != nullptr)
+			{
+				auto *physObj = colObj->GetPhysObj();
+				if(physObj != nullptr)
+				{
+					auto *ent = physObj->GetOwner();
+					auto *pPhysComponent = (ent != nullptr) ? ent->GetEntity().GetPhysicsComponent() : nullptr;
+					if(pPhysComponent && pPhysComponent->IsRayResultCallbackEnabled() == true)
+					{
+						if(pPhysComponent->RayResultCallback(
+							static_cast<CollisionMask>(m_collisionFilterGroup),static_cast<CollisionMask>(m_collisionFilterMask)
+						) == false)
+							return 0.0;
+					}
+					// TODO: Filter
+				}
+			}
+			return TBase::addSingleResult(rayResult,normalInWorldSpace);
+		}
+	private:
+		pragma::physics::IRayCastFilterCallback *m_filter = nullptr;
+	};
+
+	class PhysAllHitsRayResultCallback
+		: public PhysRayResultCallback<btCollisionWorld::AllHitsRayResultCallback>
+	{
+	public:
+		using PhysRayResultCallback<btCollisionWorld::AllHitsRayResultCallback>::PhysRayResultCallback;
+	};
+
+	class PhysClosestRayResultCallback
+		: public PhysRayResultCallback<btCollisionWorld::ClosestRayResultCallback>
+	{
+	public:
+		using PhysRayResultCallback<btCollisionWorld::ClosestRayResultCallback>::PhysRayResultCallback;
+	};
+};
+
 Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<TraceResult> *results) const
 {
-#if 0
 	auto origin = data.GetSourceOrigin();
 	auto btOrigin = uvec::create_bt(origin) *WORLD_SCALE;
 	auto btEnd = uvec::create_bt(data.GetTargetOrigin()) *WORLD_SCALE;
@@ -956,16 +1008,20 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 	auto group = data.GetCollisionFilterGroup();
 	if((UInt32(flags) &UInt32(RayCastFlags::ReportAllResults)) == 0 || results == nullptr)
 	{
-		auto btResult = (filter != nullptr) ? filter->CreateClosestRayCallbackFilter(flags,group,mask,btOrigin,btEnd) : PhysClosestRayResultCallback(btOrigin,btEnd,flags,group,mask,nullptr);
+		pragma::physics::PhysClosestRayResultCallback btResult {filter.get(),btOrigin,btEnd};
 		m_btWorld->rayTest(btOrigin,btEnd,btResult);
 		if(results != nullptr)
 		{
 			results->push_back(TraceResult());
 			auto &r = results->back();
 			r.startPosition = origin;
-			r.hit = btResult.hasHit();
+			if(btResult.hasHit())
+				r.hitType = RayCastHitType::Block;
+			else
+				r.hitType = RayCastHitType::None;
+
 			r.fraction = CFloat(btResult.m_closestHitFraction);
-			if(r.hit == false)
+			if(r.hitType == RayCastHitType::None)
 				r.position = data.GetTargetOrigin();
 			else
 				r.position = uvec::create(btResult.m_hitPointWorld /WORLD_SCALE);
@@ -981,8 +1037,8 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 			if(colObj != nullptr)
 			{
 				auto &r = results->back();
-				r.collisionObj = colObj->GetHandle();
-				auto *physObj = static_cast<PhysObj*>(colObj->userData);
+				r.collisionObj = util::weak_shared_handle_cast<IBase,ICollisionObject>(colObj->GetHandle());
+				auto *physObj = colObj->GetPhysObj();
 				if(physObj != nullptr)
 				{
 					r.physObj = physObj->GetHandle();
@@ -996,7 +1052,7 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 	}
 	else
 	{
-		auto btResult = (filter != nullptr) ? filter->CreateAllHitsRayCallbackFilter(flags,group,mask,btOrigin,btEnd) : PhysAllHitsRayResultCallback(btOrigin,btEnd,flags,group,mask);
+		pragma::physics::PhysAllHitsRayResultCallback btResult {filter.get(),btOrigin,btEnd};
 		m_btWorld->rayTest(btOrigin,btEnd,btResult);
 		if(btResult.hasHit() == true)
 		{
@@ -1005,11 +1061,8 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 				results->push_back(TraceResult());
 				auto &r = results->back();
 				r.startPosition = origin;
-				r.hit = true;
-				if(r.hit == false)
-					r.position = data.GetTargetOrigin();
-				else
-					r.position = uvec::create(btResult.m_hitPointWorld[i] /WORLD_SCALE);
+				r.hitType = RayCastHitType::Block;
+				r.position = uvec::create(btResult.m_hitPointWorld[i] /WORLD_SCALE);
 				r.distance = uvec::distance(r.position,origin);
 				r.normal = uvec::create(btResult.m_hitNormalWorld[i]);
 				if(i == 0)
@@ -1023,8 +1076,8 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 				auto *colObj = static_cast<ICollisionObject*>(obj->getUserPointer());
 				if(colObj != nullptr)
 				{
-					r.collisionObj = colObj->GetHandle();
-					auto *physObj = static_cast<PhysObj*>(colObj->userData);
+					r.collisionObj = util::weak_shared_handle_cast<IBase,ICollisionObject>(colObj->GetHandle());
+					auto *physObj = colObj->GetPhysObj();
 					if(physObj != nullptr)
 					{
 						r.physObj = physObj->GetHandle();
@@ -1037,17 +1090,16 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 		}
 		return btResult.hasHit();
 	}
-#endif
 	return false;
 }
 
 Bool pragma::physics::BtEnvironment::Overlap(const TraceData &data,std::vector<TraceResult> *results) const
 {
 #if 0
-	std::vector<ICollisionObject*> objs;
-	if(data.GetCollisionObjects(objs) == false)
+	auto *shape = data.GetShape();
+	if(shape == nullptr)
 		return false;
-	auto *filter = data.GetFilter();
+	auto &filter = data.GetFilter();
 	auto flags = data.GetFlags();
 	auto group = data.GetCollisionFilterGroup();
 	auto mask = data.GetCollisionFilterMask();
@@ -1085,7 +1137,7 @@ Bool pragma::physics::BtEnvironment::Overlap(const TraceData &data,std::vector<T
 		if(colObj != nullptr)
 		{
 			r.collisionObj = colObj->GetHandle();
-			auto *physObj = static_cast<PhysObj*>(colObj->userData);
+			auto *physObj = colObj->GetPhysObj();
 			if(physObj != nullptr)
 			{
 				r.physObj = physObj->GetHandle();
@@ -1140,7 +1192,7 @@ Bool pragma::physics::BtEnvironment::Sweep(const TraceData &data,std::vector<Tra
 			if(colObj != nullptr)
 			{
 				r.collisionObj = colObj->GetHandle();
-				auto *physObj = static_cast<PhysObj*>(colObj->userData);
+				auto *physObj = colObj->GetPhysObj();
 				if(physObj != nullptr)
 				{
 					r.physObj = physObj->GetHandle();

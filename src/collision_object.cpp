@@ -259,7 +259,7 @@ void pragma::physics::BtCollisionObject::SetActivationState(ActivationState stat
 		break;
 	}
 	static_assert(umath::to_integral(ActivationState::Count) == 5);
-	m_collisionObject->setActivationState(btState);
+	m_collisionObject->forceActivationState(btState);
 }
 
 void pragma::physics::BtCollisionObject::SetContactProcessingThreshold(float threshold)
