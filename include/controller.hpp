@@ -30,6 +30,8 @@ namespace pragma::physics
 		btManifoldPoint contactPoint {};
 		util::TWeakSharedHandle<ICollisionObject> contactObject0 {}; // The character controller
 		util::TWeakSharedHandle<ICollisionObject> contactObject1 {};
+		std::weak_ptr<IShape> contactShape0 {};
+		std::weak_ptr<IShape> contactShape1 {};
 		int32_t surfaceMaterialId = -1;
 		int8_t controllerIndex = -1; // = 0 if the controller is object 0 in 'contactPoint', otherwise 1
 	};

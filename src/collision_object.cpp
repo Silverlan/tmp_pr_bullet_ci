@@ -646,6 +646,15 @@ void pragma::physics::BtRigidBody::PreSimulate()
 			static_cast<float>(umath::rad_to_deg(angVel.z))
 		};
 		transform.SetRotation(transform.GetRotation() *uquat::create(ang));
+		auto &body = GetInternalObject();
+		body.setLinearVelocity(BtEnvironment::ToBtPosition(GetLinearVelocity()));
+		auto &av = GetAngularVelocity();
+		body.setAngularVelocity({av.x,av.y,av.z});
+
+		// TODO: This shouldn't be needed, but without it the collisions for the kinematic actor
+		// don't seem to update properly (misconfiguration somewhere?)
+		SetPos(transform.GetOrigin());
+		SetRotation(transform.GetRotation());
 	}
 	pragma::physics::ICollisionObject::PreSimulate();
 }

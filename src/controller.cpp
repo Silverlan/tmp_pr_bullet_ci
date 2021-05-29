@@ -83,8 +83,12 @@ pragma::physics::IController::CollisionFlags pragma::physics::BtController::GetC
 }
 pragma::physics::IShape *pragma::physics::BtController::GetGroundShape() const
 {
-	auto *body = GetGroundBody();
-	return body ? body->GetCollisionShape() : nullptr;
+	if(!m_groundInfo.has_value())
+		return nullptr;
+	auto idx = m_groundInfo->contactInfo.controllerIndex;
+	auto &contactPoint = m_groundInfo->contactInfo.contactPoint;
+	auto &contactObject = (idx == 0) ? m_groundInfo->contactInfo.contactShape0 : m_groundInfo->contactInfo.contactShape1;
+	return !contactObject.expired() ? contactObject.lock().get() : nullptr;
 }
 pragma::physics::IRigidBody *pragma::physics::BtController::GetGroundBody() const
 {
@@ -311,6 +315,31 @@ bool pragma::physics::BtController::SetGroundContactPoint(const btManifoldPoint 
 	auto *obj1 = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
 	contactInfo.contactObject0 = (obj0 != nullptr) ? util::weak_shared_handle_cast<IBase,ICollisionObject>(obj0->GetHandle()) : util::TWeakSharedHandle<ICollisionObject>{};
 	contactInfo.contactObject1 = (obj1 != nullptr) ? util::weak_shared_handle_cast<IBase,ICollisionObject>(obj1->GetHandle()) : util::TWeakSharedHandle<ICollisionObject>{};
+
+	auto fGetShape = [](pragma::physics::ICollisionObject &o,int shapeIdx) -> pragma::physics::IShape* {
+		auto *shape = o.GetCollisionShape();
+		if(!shape)
+			return nullptr;
+		auto *compoundShape = shape->GetCompoundShape();
+		if(!compoundShape)
+			return shape;
+		auto &shapes = compoundShape->GetShapes();
+		if(shapeIdx < 0 || shapeIdx >= shapes.size())
+			return nullptr;
+		return shapes[shapeIdx].shape.get();
+	};
+	contactInfo.contactShape0 = {};
+	contactInfo.contactShape1 = {};
+	if(contactInfo.contactObject0.IsValid())
+	{
+		auto *shape = fGetShape(*contactInfo.contactObject0,contactPoint.m_index0);
+		contactInfo.contactShape0 = shape ? std::static_pointer_cast<IShape>(shape->shared_from_this()) : nullptr;
+	}
+	if(contactInfo.contactObject1.IsValid())
+	{
+		auto *shape = fGetShape(*contactInfo.contactObject1,contactPoint.m_index1);
+		contactInfo.contactShape1 = shape ? std::static_pointer_cast<IShape>(shape->shared_from_this()) : nullptr;
+	}
 
 	// TODO
 	//SetCurrentFriction(CFloat(contactPoint.m_combinedFriction));
