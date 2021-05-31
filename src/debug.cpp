@@ -5,7 +5,6 @@
 #include "debug.hpp"
 #include "environment.hpp"
 
-#pragma optimize("",off)
 void pragma::physics::BtVisualDebugger::setDebugMode(int debugMode)
 {
 	// TODO
@@ -50,4 +49,3 @@ void pragma::physics::BtVisualDebugger::draw3dText(const btVector3 &pos,const ch
 	//Draw3DText(Vector3(pos.x() /BtEnvironment::WORLD_SCALE,pos.y() /BtEnvironment::WORLD_SCALE,pos.z() /BtEnvironment::WORLD_SCALE),str);
 }
 int pragma::physics::BtVisualDebugger::getDebugMode() const {return m_debugMode;}
-#pragma optimize("",on)

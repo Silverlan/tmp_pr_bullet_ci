@@ -164,7 +164,6 @@ namespace pragma::physics
 btRaycastVehicle::btVehicleTuning m_tuning = {};
 std::unique_ptr<btRaycastVehicle> m_vhcRaycast = nullptr;
 
-#pragma optimize("",off)
 PhysVehicleRaycaster::PhysVehicleRaycaster(Game *game,pragma::BaseVehicleComponent &vhc)
 	: m_game(game),m_vehicle(vhc),m_entity(vhc.GetEntity())
 {
@@ -760,7 +759,6 @@ void BaseVehicleComponent::SetRollInfluence(Float influence)
 			data.hWheel->SetRollInfluence(influence);
 	}
 }
-#pragma optimize("",on)
 
 #endif
 

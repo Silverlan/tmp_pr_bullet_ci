@@ -11,7 +11,6 @@
 #include <pragma/game/game.h>
 #include <pragma/model/modelmesh.h>
 
-#pragma optimize("",off)
 class SimpleMotionState
 	: public btMotionState
 {
@@ -985,4 +984,3 @@ void pragma::physics::BtGhostObject::RemoveWorldObject()
 	auto *world = GetBtEnv().GetWorld();
 	world->removeCollisionObject(m_collisionObject.get());
 }
-#pragma optimize("",on)

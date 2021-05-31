@@ -34,7 +34,7 @@ enum class BulletBroadphaseType : uint32_t
 	Dbvt = 0u, // Should be more efficient than AxisSweep3_32Bit, but causes massive performance drop for some unknown reason
 	AxisSweep3_32Bit
 };
-#pragma optimize("",off)
+
 const double pragma::physics::BtEnvironment::WORLD_SCALE = util::pragma::units_to_metres(1.0);
 const double pragma::physics::BtEnvironment::WORLD_SCALE_SQR = umath::pow(BtEnvironment::WORLD_SCALE,2.0);
 const float pragma::physics::BtEnvironment::CCD_MOTION_THRESHOLD = 4.f *static_cast<float>(WORLD_SCALE);
@@ -1561,5 +1561,3 @@ pragma::physics::ContactMap::~ContactMap()
 	for(auto it=m_contacts.begin();it!=m_contacts.end();)
 		it = ClearContact(it);
 }
-
-#pragma optimize("",on)

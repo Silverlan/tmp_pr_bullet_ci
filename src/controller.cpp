@@ -11,8 +11,6 @@
 #include <pragma/game/game.h>
 #include <pragma/entities/components/base_character_component.hpp>
 #include <BulletCollision/CollisionShapes/btMultimaterialTriangleMeshShape.h>
-
-#pragma optimize("",off)
 #include <BulletCollision/NarrowPhaseCollision/btManifoldPoint.h>
 
 Vector3 pragma::physics::PhysContactInfo::GetContactNormal(const Vector3 &n,int8_t controllerIndex)
@@ -171,6 +169,7 @@ void pragma::physics::BtController::PreSimulate(float dt)
 	ClearGroundContactPoint();
 	DoMove(vel);
 }
+
 void pragma::physics::BtController::PostSimulate(float dt)
 {
 	if(dt > 0.f)
@@ -366,4 +365,3 @@ bool pragma::physics::BtController::SetGroundContactPoint(const btManifoldPoint 
 	}
 	return true;
 }
-#pragma optimize("",on)

@@ -8,7 +8,6 @@
 #include <pragma/networkstate/networkstate.h>
 #include <pragma/game/game_coordinate_system.hpp>
 
-#pragma optimize("",off)
 pragma::physics::BtConstraint::BtConstraint(pragma::physics::IEnvironment &env,std::unique_ptr<btTypedConstraint> c)
 	: IConstraint{env},m_constraint{std::move(c)}
 {}
@@ -1030,4 +1029,3 @@ bool pragma::physics::BtDoFSpringConstraint::MatrixToEulerZYX(const btMatrix3x3&
 {
 	return GetInternalObject().matrixToEulerZYX(mat,xyz);
 }
-#pragma optimize("",on)

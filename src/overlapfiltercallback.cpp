@@ -10,7 +10,6 @@
 
 #define VERBOSE_OBJECT_COLLISIONS 0
 
-#pragma optimize("",off)
 #if VERBOSE_OBJECT_COLLISIONS == 1
 static std::string get_proxy_object_name(btBroadphaseProxy* proxy,BaseEntity **ptrEnt=nullptr)
 {
@@ -89,4 +88,3 @@ bool PhysOverlapFilterCallback::needBroadphaseCollision(btBroadphaseProxy* proxy
 	// Just use the default behavior
 	return bShouldCollide;
 }
-#pragma optimize("",on)
