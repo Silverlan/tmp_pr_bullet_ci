@@ -965,7 +965,7 @@ namespace pragma::physics
 					if(pPhysComponent && pPhysComponent->IsRayResultCallbackEnabled() == true)
 					{
 						if(pPhysComponent->RayResultCallback(
-							static_cast<CollisionMask>(m_collisionFilterGroup),static_cast<CollisionMask>(m_collisionFilterMask)
+							static_cast<CollisionMask>(TBase::m_collisionFilterGroup),static_cast<CollisionMask>(TBase::m_collisionFilterMask)
 						) == false)
 							return 0.0;
 					}
@@ -1271,6 +1271,9 @@ static void update_physics_contact_controller_info(Game *game,int idx,const btCo
 	auto *colOther = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
 	if(phys == nullptr || phys->IsController() == false || (colOther != nullptr && colOther->IsTrigger() == true))
 		return;
+	if((col->GetCollisionFilterMask() &colOther->GetCollisionFilterGroup()) == CollisionMask::None || (colOther->GetCollisionFilterMask() &col->GetCollisionFilterGroup()) == CollisionMask::None)
+		return;
+
 	auto *shape = o->getCollisionShape();
 	auto numContacts = contactManifold->getNumContacts();
 	for(auto i=decltype(numContacts){0};i<numContacts;++i)
@@ -1295,7 +1298,7 @@ static void update_physics_contact_controller_info(Game *game,int idx,const btCo
 		// This will only be applied if the contact point is a better candidate than the controller's previous candidate (for this tick)!
 		auto *controller = static_cast<ControllerPhysObj*>(phys)->GetController();
 		if(controller)
-			dynamic_cast<pragma::physics::BtController*>(controller)->SetGroundContactPoint(contactPoint,idx,o,oOther);
+			dynamic_cast<pragma::physics::BtController*>(controller)->SetGroundContactPoint(contactPoint,idx,(idx == 1) ? oOther : o,(idx == 0) ? oOther : o);
 	}
 }
 

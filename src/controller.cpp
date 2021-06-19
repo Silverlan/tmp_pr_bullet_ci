@@ -94,8 +94,10 @@ pragma::physics::IRigidBody *pragma::physics::BtController::GetGroundBody() cons
 		return {};
 	auto idx = m_groundInfo->contactInfo.controllerIndex;
 	auto &contactPoint = m_groundInfo->contactInfo.contactPoint;
-	auto &contactObject = (idx == 0) ? m_groundInfo->contactInfo.contactObject0 : m_groundInfo->contactInfo.contactObject1;
+	auto &contactObject = (idx == 0) ? m_groundInfo->contactInfo.contactObject1 : m_groundInfo->contactInfo.contactObject0;
 	auto *o = contactObject.Get();
+	if(!o)
+		return nullptr;
 	return o->IsRigid() ? const_cast<IRigidBody*>(o->GetRigidBody()) : nullptr;
 }
 pragma::physics::IMaterial *pragma::physics::BtController::GetGroundMaterial() const
@@ -342,7 +344,8 @@ bool pragma::physics::BtController::SetGroundContactPoint(const btManifoldPoint 
 
 	// TODO
 	//SetCurrentFriction(CFloat(contactPoint.m_combinedFriction));
-	auto *shape = oOther->getCollisionShape();
+	auto *oSurface = (idx == 0) ? oOther : o;
+	auto *shape = oSurface->getCollisionShape();
 	if(shape->getShapeType() == MULTIMATERIAL_TRIANGLE_MESH_PROXYTYPE)
 	{
 		throw std::runtime_error{"Not implemented!"};
@@ -355,7 +358,7 @@ bool pragma::physics::BtController::SetGroundContactPoint(const btManifoldPoint 
 	}
 	else
 	{
-		auto *obj = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
+		auto *obj = static_cast<pragma::physics::ICollisionObject*>(oSurface->getUserPointer());
 		if(obj != nullptr)
 		{
 			auto *surface = GetBtEnv().GetNetworkState().GetGameState()->GetSurfaceMaterial(obj->GetSurfaceMaterial());

@@ -647,7 +647,7 @@ void pragma::physics::BtRigidBody::PreSimulate()
 		transform.SetRotation(transform.GetRotation() *uquat::create(ang));
 		auto &body = GetInternalObject();
 		body.setLinearVelocity(BtEnvironment::ToBtPosition(GetLinearVelocity()));
-		auto &av = GetAngularVelocity();
+		auto av = GetAngularVelocity();
 		body.setAngularVelocity({av.x,av.y,av.z});
 
 		// TODO: This shouldn't be needed, but without it the collisions for the kinematic actor
@@ -884,7 +884,7 @@ Quat pragma::physics::BtSoftBody::GetRotation() const {return m_rotation;}
 
 void pragma::physics::BtSoftBody::SetWorldTransform(const umath::Transform &t)
 {
-	auto &bt = BtEnvironment::CreateBtTransform(t);
+	auto bt = BtEnvironment::CreateBtTransform(t);
 	GetInternalObject().transform(GetInternalObject().getWorldTransform().inverse() *bt);
 }
 

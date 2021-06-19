@@ -28,7 +28,7 @@ namespace pragma::physics
 		Vector3 GetContactNormal() const;
 		double CalcXZDistance() const;
 		btManifoldPoint contactPoint {};
-		util::TWeakSharedHandle<ICollisionObject> contactObject0 {}; // The character controller
+		util::TWeakSharedHandle<ICollisionObject> contactObject0 {};
 		util::TWeakSharedHandle<ICollisionObject> contactObject1 {};
 		std::weak_ptr<IShape> contactShape0 {};
 		std::weak_ptr<IShape> contactShape1 {};
