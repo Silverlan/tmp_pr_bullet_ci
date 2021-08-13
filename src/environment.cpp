@@ -1044,7 +1044,7 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 					r.physObj = physObj->GetHandle();
 					auto *ent = physObj->GetOwner();
 					if(ent != nullptr)
-						r.entity = &ent->GetEntity();
+						r.entity = ent->GetEntity().GetHandle();
 				}
 			}
 		}
@@ -1083,7 +1083,7 @@ Bool pragma::physics::BtEnvironment::RayCast(const TraceData &data,std::vector<T
 						r.physObj = physObj->GetHandle();
 						auto *ent = physObj->GetOwner();
 						if(ent != nullptr)
-							r.entity = &ent->GetEntity();
+							r.entity = ent->GetEntity().GetHandle();
 					}
 				}
 			}
