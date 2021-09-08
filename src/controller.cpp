@@ -348,7 +348,8 @@ bool pragma::physics::BtController::SetGroundContactPoint(const btManifoldPoint 
 	auto *shape = oSurface->getCollisionShape();
 	if(shape->getShapeType() == MULTIMATERIAL_TRIANGLE_MESH_PROXYTYPE)
 	{
-		throw std::runtime_error{"Not implemented!"};
+		std::cout<<"MULTIMATERIAL_TRIANGLE_MESH_PROXYTYPE not implemented!"<<std::endl;
+		//throw std::runtime_error{"Not implemented!"};
 		// TODO
 		/*auto *mtShape = const_cast<btMultimaterialTriangleMeshShape*>(static_cast<const btMultimaterialTriangleMeshShape*>(shape));
 		auto *matProps = mtShape->getMaterialProperties((idx == 0) ? contactPoint.m_partId1 : contactPoint.m_partId0,(idx == 0) ? contactPoint.m_index1 : contactPoint.m_index0);
