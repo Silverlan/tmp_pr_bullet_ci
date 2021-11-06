@@ -39,6 +39,7 @@ namespace pragma::physics
 		btCollisionShape *m_externalShape;
 		umath::Transform m_localPose = {};
 		bool m_bTrigger = false;
+		float m_mass = 0.f;
 	};
 	class BtConvexShape
 		: virtual public pragma::physics::IConvexShape,

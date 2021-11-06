@@ -28,7 +28,9 @@ namespace pragma::physics
 		enum class BtStateFlags : uint32_t
 		{
 			None = 0u,
-			CcdEnabled = 1u
+			CcdEnabled = 1u,
+			Awake = CcdEnabled<<1u,
+			WorldObjectRemoved = Awake<<1u
 		};
 		friend IEnvironment;
 		btCollisionObject &GetInternalObject() const;
@@ -79,7 +81,12 @@ namespace pragma::physics
 		virtual void SetSimulationEnabled(bool b) override;
 		virtual bool IsSimulationEnabled() const override;
 		virtual void SetCollisionsEnabled(bool enabled) override;
+
+		void SetAwake(bool awake,bool removeFromGlobalAwakeList=true);
+		static void UpdateAwakeStates(uint64_t tick);
 	protected:
+		void OnAddWorldObject();
+		void OnRemoveWorldObject();
 		BtCollisionObject(IEnvironment &env,std::unique_ptr<btCollisionObject> o,IShape &shape);
 		virtual void DoSpawn() override;
 		void UpdateCCD();
@@ -91,6 +98,9 @@ namespace pragma::physics
 			CollisionMask lastCollisionGroup = CollisionMask::None;
 		} m_simState {};
 		BtStateFlags m_btStateFlags = BtStateFlags::None;
+		uint64_t m_lastTickAwake = std::numeric_limits<uint64_t>::max();
+		umath::Transform m_localPose {};
+		umath::Transform m_localPoseInv {};
 	};
 
 	class BtShape;

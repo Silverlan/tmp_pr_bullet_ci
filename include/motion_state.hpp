@@ -4,11 +4,22 @@
 #include <mathutil/transform.hpp>
 #include <LinearMath/btMotionState.h>
 
-class KinematicMotionState
+namespace pragma::physics {class BtCollisionObject;};
+class SimpleMotionState
 	: public btMotionState
 {
 public:
-	KinematicMotionState(const umath::Transform &initialTransform={});
+	SimpleMotionState(pragma::physics::BtCollisionObject &o);
+	virtual void getWorldTransform(btTransform &worldTrans) const override;
+	virtual void setWorldTransform(const btTransform &worldTrans) override;
+	pragma::physics::BtCollisionObject &collisionObject;
+};
+
+class KinematicMotionState
+	: public SimpleMotionState
+{
+public:
+	KinematicMotionState(pragma::physics::BtCollisionObject &o,const umath::Transform &initialTransform={});
 	virtual ~KinematicMotionState() override;
 
 	umath::Transform &GetWorldTransform();

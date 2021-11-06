@@ -45,15 +45,8 @@ void pragma::physics::BtShape::ApplySurfaceMaterial(IMaterial &mat)
 {
 	// TODO
 }
-void pragma::physics::BtShape::SetMass(float mass)
-{
-	// TODO
-}
-float pragma::physics::BtShape::GetMass() const
-{
-	// TODO
-	return {};
-}
+void pragma::physics::BtShape::SetMass(float mass) {m_mass = mass;}
+float pragma::physics::BtShape::GetMass() const {return m_mass;}
 
 void pragma::physics::BtShape::GetAABB(Vector3 &min,Vector3 &max) const
 {

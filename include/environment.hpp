@@ -8,6 +8,7 @@
 #include "common.hpp"
 #include <pragma/physics/environment.hpp>
 #include <unordered_set>
+#include <queue>
 #include <sharedutils/util_hash.hpp>
 #ifdef __linux__
 #include <BulletSoftBody/btSoftBody.h>
@@ -138,6 +139,9 @@ namespace pragma::physics
 		util::TSharedHandle<IConeTwistConstraint> AddConeTwistConstraint(std::unique_ptr<btConeTwistConstraint> c);
 		util::TSharedHandle<IDoFConstraint> AddDoFConstraint(std::unique_ptr<btGeneric6DofConstraint> c);
 		util::TSharedHandle<IDoFSpringConstraint> AddDoFSpringConstraint(std::unique_ptr<btGeneric6DofSpring2Constraint> c);
+
+		uint64_t GetCurrentSimulationStepIndex() const {return m_curSimStepIndex;}
+		void PushEvent(const std::function<void()> &ev) {m_events.push(ev);}
 	protected:
 		virtual void UpdateSurfaceTypes() override;
 		virtual void OnVisualDebuggerChanged(pragma::physics::IVisualDebugger *debugger) override;
@@ -152,6 +156,8 @@ namespace pragma::physics
 		std::unique_ptr<btSoftBodyWorldInfo> m_softBodyWorldInfo;
 		std::unique_ptr<BtDebugDrawer> m_btDebugDrawer = nullptr;
 		ContactMap m_contactMap {};
+		uint64_t m_curSimStepIndex = 0;
+		std::queue<std::function<void()>> m_events;
 
 		void AddAction(btActionInterface *action);
 

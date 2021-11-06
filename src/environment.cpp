@@ -1228,6 +1228,7 @@ void pragma::physics::BtEnvironment::RemoveController(IController &controller)
 }
 pragma::physics::IEnvironment::RemainingDeltaTime pragma::physics::BtEnvironment::DoStepSimulation(float timeStep,int maxSubSteps,float fixedTimeStep)
 {
+	++m_curSimStepIndex;
 	if(fixedTimeStep == 0.f)
 		return timeStep;
 	for(auto &hController : GetControllers())
@@ -1241,6 +1242,13 @@ pragma::physics::IEnvironment::RemainingDeltaTime pragma::physics::BtEnvironment
 	}
 	g_simEnvironment = this;
 	m_btWorld->stepSimulation(timeStep,maxSubSteps,fixedTimeStep);
+	BtCollisionObject::UpdateAwakeStates(m_curSimStepIndex);
+	while(!m_events.empty())
+	{
+		auto &ev = m_events.front();
+		ev();
+		m_events.pop();
+	}
 	for(auto &hController : GetControllers())
 	{
 		if(hController.IsExpired())
@@ -1265,10 +1273,10 @@ pragma::physics::IEnvironment::RemainingDeltaTime pragma::physics::BtEnvironment
 static void update_physics_contact_controller_info(Game *game,int idx,const btCollisionObject *o,const btCollisionObject *oOther,btPersistentManifold *contactManifold)
 {
 	auto *col = static_cast<pragma::physics::ICollisionObject*>(o->getUserPointer());
-	if(col == nullptr)
+	auto *colOther = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
+	if(col == nullptr || colOther == nullptr)
 		return;
 	auto *phys = col->GetPhysObj();
-	auto *colOther = static_cast<pragma::physics::ICollisionObject*>(oOther->getUserPointer());
 	if(phys == nullptr || phys->IsController() == false || (colOther != nullptr && colOther->IsTrigger() == true))
 		return;
 	if((col->GetCollisionFilterMask() &colOther->GetCollisionFilterGroup()) == CollisionMask::None || (colOther->GetCollisionFilterMask() &col->GetCollisionFilterGroup()) == CollisionMask::None)
