@@ -4,6 +4,7 @@
 
 #include "overlapfiltercallback.hpp"
 #include "collision_object.hpp"
+#include <pragma/entities/entity_component_manager.hpp>
 #include <pragma/physics/physobj.h>
 #include <pragma/entities/baseentity.h>
 #include <pragma/entities/components/base_physics_component.hpp>

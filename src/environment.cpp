@@ -16,6 +16,7 @@
 #include <BulletSoftBody/btDefaultSoftBodySolver.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletCollision/BroadphaseCollision/btAxisSweep3.h>
+#include <pragma/entities/entity_component_manager.hpp>
 #include <pragma/networkstate/networkstate.h>
 #include <pragma/game/game.h>
 #include <pragma/util/util_game.hpp>

@@ -75,6 +75,8 @@ namespace pragma::physics
 		virtual void SetPos(const Vector3 &pos) override;
 		virtual Quat GetRotation() const override;
 		virtual void SetRotation(const Quat &rot) override;
+		virtual umath::Transform GetBaseTransform() override;
+		virtual void SetBaseTransform(const umath::Transform &t) override;
 		virtual umath::Transform GetWorldTransform() override;
 		virtual void SetWorldTransform(const umath::Transform &t) override;
 

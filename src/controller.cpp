@@ -9,6 +9,7 @@
 #include "kinematic_character_controller.hpp"
 #include <pragma/networkstate/networkstate.h>
 #include <pragma/game/game.h>
+#include <pragma/entities/entity_component_manager.hpp>
 #include <pragma/entities/components/base_character_component.hpp>
 #include <BulletCollision/CollisionShapes/btMultimaterialTriangleMeshShape.h>
 #include <BulletCollision/NarrowPhaseCollision/btManifoldPoint.h>

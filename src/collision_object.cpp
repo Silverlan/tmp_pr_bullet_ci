@@ -176,6 +176,12 @@ void pragma::physics::BtCollisionObject::GetAABB(Vector3 &min,Vector3 &max) cons
 	return (state == DISABLE_SIMULATION || state == ISLAND_SLEEPING) ? true : false;
 }*/
 
+umath::Transform pragma::physics::BtCollisionObject::GetBaseTransform() {return BtEnvironment::CreateTransform(m_collisionObject->getWorldTransform());}
+void pragma::physics::BtCollisionObject::SetBaseTransform(const umath::Transform &t)
+{
+	m_collisionObject->setWorldTransform(BtEnvironment::CreateBtTransform(t));
+}
+
 umath::Transform pragma::physics::BtCollisionObject::GetWorldTransform()
 {
 	return BtEnvironment::CreateTransform(m_collisionObject->getWorldTransform()) *m_localPoseInv;
