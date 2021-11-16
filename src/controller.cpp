@@ -86,7 +86,7 @@ pragma::physics::IShape *pragma::physics::BtController::GetGroundShape() const
 		return nullptr;
 	auto idx = m_groundInfo->contactInfo.controllerIndex;
 	auto &contactPoint = m_groundInfo->contactInfo.contactPoint;
-	auto &contactObject = (idx == 0) ? m_groundInfo->contactInfo.contactShape0 : m_groundInfo->contactInfo.contactShape1;
+	auto &contactObject = (idx == 1) ? m_groundInfo->contactInfo.contactShape0 : m_groundInfo->contactInfo.contactShape1;
 	return !contactObject.expired() ? contactObject.lock().get() : nullptr;
 }
 pragma::physics::IRigidBody *pragma::physics::BtController::GetGroundBody() const
