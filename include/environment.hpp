@@ -30,26 +30,6 @@ namespace pragma::physics
 	class IBase;
 	class BtDebugDrawer;
 
-	using CollisionContact = std::pair<const btCollisionObject*,const btCollisionObject*>;
-	struct CollisionContactHash
-	{
-		std::size_t operator() (const CollisionContact &pair) const {
-			return util::hash_combine<const btCollisionObject*>(util::hash_combine<const btCollisionObject*>(0,pair.first),pair.second);
-		}
-	};
-	using CollisionContactList = std::unordered_set<CollisionContact,CollisionContactHash>;
-	struct ContactMap
-	{
-		void AddContact(const btCollisionObject &a,const btCollisionObject &b);
-		void RemoveContact(const btCollisionObject &a,const btCollisionObject &b);
-		void RemoveContacts(const btCollisionObject &o);
-		void UpdateContacts(const CollisionContactList &newContacts);
-		~ContactMap();
-	private:
-		CollisionContactList::iterator ClearContact(CollisionContactList::iterator it);
-		CollisionContactList m_contacts;
-	};
-
 	class BtEnvironment
 		: public pragma::physics::IEnvironment
 	{
@@ -128,9 +108,6 @@ namespace pragma::physics
 		btSoftBodySolver &GetSoftBodySolver();
 		const btSoftBodySolver &GetSoftBodySolver() const;
 		
-		ContactMap &GetCollisionContactMap() {return m_contactMap;}
-		const ContactMap &GetCollisionContactMap() const {return const_cast<BtEnvironment*>(this)->GetCollisionContactMap();}
-
 		// For internal or debugging purposes only!
 		util::TSharedHandle<IFixedConstraint> AddFixedConstraint(std::unique_ptr<btFixedConstraint> c);
 		util::TSharedHandle<IBallSocketConstraint> AddBallSocketConstraint(std::unique_ptr<btPoint2PointConstraint> c);
@@ -155,7 +132,6 @@ namespace pragma::physics
 		std::unique_ptr<btSoftBodySolver> m_softBodySolver = nullptr;
 		std::unique_ptr<btSoftBodyWorldInfo> m_softBodyWorldInfo;
 		std::unique_ptr<BtDebugDrawer> m_btDebugDrawer = nullptr;
-		ContactMap m_contactMap {};
 		uint64_t m_curSimStepIndex = 0;
 		std::queue<std::function<void()>> m_events;
 

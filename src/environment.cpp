@@ -79,10 +79,12 @@ public:
 };
 
 extern void btInitCustomMaterialCombinerCallback();
+static void initContactCallbacks();
 pragma::physics::BtEnvironment::BtEnvironment(NetworkState &state)
 	: pragma::physics::IEnvironment{state}
 {
 	btInitCustomMaterialCombinerCallback();
+	initContactCallbacks();
 
 	if(std::is_same<btWorldType,btSoftRigidDynamicsWorld>::value == true)
 		m_btCollisionConfiguration = std::make_unique<btSoftBodyRigidBodyCollisionConfiguration>();
@@ -1216,7 +1218,7 @@ void pragma::physics::BtEnvironment::RemoveConstraint(IConstraint &constraint)
 }
 void pragma::physics::BtEnvironment::RemoveCollisionObject(ICollisionObject &obj)
 {
-	m_contactMap.RemoveContacts(dynamic_cast<BtCollisionObject&>(obj).GetBtCollisionObject());
+	//m_contactMap.RemoveContacts(dynamic_cast<BtCollisionObject&>(obj).GetBtCollisionObject());
 	m_btWorld->removeCollisionObject(&dynamic_cast<BtCollisionObject&>(obj).GetInternalObject());
 	IEnvironment::RemoveCollisionObject(obj);
 
@@ -1311,156 +1313,124 @@ static void update_physics_contact_controller_info(Game *game,int idx,const btCo
 	}
 }
 
-void pragma::physics::BtEnvironment::SimulationCallback(double)
+//typedef void (*ContactStartedCallback)(btPersistentManifold* const& manifold);
+//typedef void (*ContactEndedCallback)(btPersistentManifold* const& manifold);
+extern ContactStartedCallback gContactStartedCallback;
+extern ContactEndedCallback gContactEndedCallback;
+
+static pragma::physics::BtEnvironment *get_phys_env(const btPersistentManifold &manifold)
 {
-	// auto t = std::chrono::high_resolution_clock::now();
-	btDispatcher *dispatcher = m_btWorld->getDispatcher();
-	int numManifolds = dispatcher->getNumManifolds();
-	auto &nw = GetNetworkState();
+	// No user data, so we'll have to get the environment another way
+	auto *o0 = manifold.getBody0();
+	auto *o1 = manifold.getBody1();
+	auto *col0 = (o0 && o1) ? static_cast<pragma::physics::ICollisionObject*>(o0->getUserPointer()) : nullptr;
+	auto *physObj = col0 ? col0->GetPhysObj() : nullptr;
+	return physObj ? static_cast<pragma::physics::BtEnvironment*>(physObj->GetNetworkState()->GetGameState()->GetPhysicsEnvironment()) : nullptr;
+}
+
+static std::vector<btPersistentManifold*> g_controllerContacts;
+static void onContactStarted(btPersistentManifold* const& manifold)
+{
+	auto *env = get_phys_env(*manifold);
+	if(!env)
+		return;
+	auto &a = *manifold->getBody0();
+	auto &b = *manifold->getBody1();
+	auto *ao = static_cast<pragma::physics::ICollisionObject*>(a.getUserPointer());
+	auto *bo = static_cast<pragma::physics::ICollisionObject*>(b.getUserPointer());
+	if(ao && bo)
+		ao->OnStartTouch(*bo);
+	
+	auto &nw = env->GetNetworkState();
 	auto *game = nw.GetGameState();
+
+	auto *phys0 = ao->GetPhysObj();
+	auto *phys1 = bo->GetPhysObj();
+	if((phys0 && phys0->IsController()) || (phys1 && phys1->IsController()))
+		g_controllerContacts.push_back(manifold);
+
+	// Physics Sound
 	auto bClient = game->IsClient();
-	CollisionContactList newContacts {};
-	for(int i=0;i<numManifolds;i++)
+	if(bClient == true)
 	{
-		btPersistentManifold *contactManifold =  dispatcher->getManifoldByIndexInternal(i);
-		int numContacts = contactManifold->getNumContacts();
-		if(numContacts > 0)
+		// TODO: This doesn't belong here! Move to Engine!
+		auto *obj = bo;
+		if(obj != nullptr)
 		{
-			// Update character ground contact point
-			auto *o0 = contactManifold->getBody0();
-			auto *o1 = contactManifold->getBody1();
-			update_physics_contact_controller_info(game,0,o0,o1,contactManifold);
-			update_physics_contact_controller_info(game,1,o1,o0,contactManifold);
-			//
-
-			// Physics Sound
-			if(bClient == true)
+			auto *surface = game->GetSurfaceMaterial(obj->GetSurfaceMaterial());
+			if(surface != nullptr)
 			{
-				// TODO: This doesn't belong here! Move to Engine!
-				auto *obj = static_cast<pragma::physics::ICollisionObject*>(o1->getUserPointer());
-				if(obj != nullptr)
+				auto numContacts = manifold->getNumContacts();
+				for(auto i=0;i<numContacts;i++)
 				{
-					auto *surface = game->GetSurfaceMaterial(obj->GetSurfaceMaterial());
-					if(surface != nullptr)
+					auto &pt = manifold->getContactPoint(0);
+					if(pt.getDistance() <= 1.f *pragma::physics::BtEnvironment::WORLD_SCALE)
 					{
-						for(auto i=0;i<numContacts;i++)
+						auto impulse = pt.getAppliedImpulse(); // Musn't be scaled by world scale!
+						const auto softImpactThreshold = 100.f;
+						const auto hardImpactThreshold = 400.f;
+						if(impulse >= softImpactThreshold)
 						{
-							auto &pt = contactManifold->getContactPoint(0);
-							if(pt.getDistance() <= 1.f *pragma::physics::BtEnvironment::WORLD_SCALE)
+							auto bHardImpact = (impulse >= hardImpactThreshold) ? true : false;
+							std::string sndImpact = (bHardImpact == false) ? surface->GetSoftImpactSound() : surface->GetHardImpactSound();
+							if(sndImpact.empty())
 							{
-								auto impulse = pt.getAppliedImpulse(); // Musn't be scaled by world scale!
-								const auto softImpactThreshold = 100.f;
-								const auto hardImpactThreshold = 400.f;
-								if(impulse >= softImpactThreshold)
-								{
-									auto bHardImpact = (impulse >= hardImpactThreshold) ? true : false;
-									std::string sndImpact = (bHardImpact == false) ? surface->GetSoftImpactSound() : surface->GetHardImpactSound();
-									if(sndImpact.empty())
-									{
-										surface = game->GetSurfaceMaterial(0);
-										sndImpact = (bHardImpact == false) ? surface->GetSoftImpactSound() : surface->GetHardImpactSound();
-									}
-									auto snd = nw.CreateSound(sndImpact,ALSoundType::Effect | ALSoundType::Physics,ALCreateFlags::Mono);
-									if(snd != nullptr)
-									{
-										auto pos = pt.getPositionWorldOnB() /pragma::physics::BtEnvironment::WORLD_SCALE;
-										snd->SetPosition(Vector3(pos.x(),pos.y(),pos.z()));
-										if(impulse < hardImpactThreshold)
-											snd->SetGain(CFloat(0.25f +(impulse -softImpactThreshold) /(hardImpactThreshold -softImpactThreshold) *0.5f));
-										else
-											snd->SetGain(CFloat(0.75f +(impulse -hardImpactThreshold) /hardImpactThreshold *0.25f));
-										snd->Play();
-									}
-									break;
-								}
+								surface = game->GetSurfaceMaterial(0);
+								sndImpact = (bHardImpact == false) ? surface->GetSoftImpactSound() : surface->GetHardImpactSound();
 							}
+							auto snd = nw.CreateSound(sndImpact,ALSoundType::Effect | ALSoundType::Physics,ALCreateFlags::Mono);
+							if(snd != nullptr)
+							{
+								auto pos = pt.getPositionWorldOnB() /pragma::physics::BtEnvironment::WORLD_SCALE;
+								snd->SetPosition(Vector3(pos.x(),pos.y(),pos.z()));
+								if(impulse < hardImpactThreshold)
+									snd->SetGain(CFloat(0.25f +(impulse -softImpactThreshold) /(hardImpactThreshold -softImpactThreshold) *0.5f));
+								else
+									snd->SetGain(CFloat(0.75f +(impulse -hardImpactThreshold) /hardImpactThreshold *0.25f));
+								snd->Play();
+							}
+							break;
 						}
 					}
 				}
-			}
-			//
-
-			newContacts.insert(std::make_pair(o0,o1));
-			newContacts.insert(std::make_pair(o1,o0));
-			m_contactMap.AddContact(*o0,*o1);
-			/*auto *colA = static_cast<pragma::physics::ICollisionObject*>(o0->getUserPointer());
-			PhysObj *physA = (colA != nullptr) ? colA->GetPhysObj() : nullptr;
-			auto *entA = (physA != nullptr) ? &physA->GetOwner()->GetEntity() : nullptr;
-			auto pPhysComponentA = (entA != nullptr) ? entA->GetPhysicsComponent() : nullptr;
-
-			auto *colB = static_cast<pragma::physics::ICollisionObject*>(o1->getUserPointer());
-			PhysObj *physB = (colB != nullptr) ? colB->GetPhysObj() : nullptr;
-			auto *entB = (physB != nullptr) ? &physB->GetOwner()->GetEntity() : nullptr;
-			auto pPhysComponentB = (entB != nullptr) ? entB->GetPhysicsComponent() : nullptr;
-			if(pPhysComponentA && pPhysComponentB)*/
-			{
-#if 0
-				bool bCallbackA = pPhysComponentA->GetCollisionCallbacksEnabled();
-				bool bCallbackB = pPhysComponentB->GetCollisionCallbacksEnabled();
-
-
-
-
-
-				if(bCallbackA == true || bCallbackB == true)
-				{
-					auto *touchComponentA = static_cast<pragma::BaseTouchComponent*>(entA->FindComponent("touch").get());
-					auto *touchComponentB = static_cast<pragma::BaseTouchComponent*>(entB->FindComponent("touch").get());
-					if(bCallbackA == true && touchComponentA != nullptr)
-						touchComponentA->Touch(entB,physB,colA,colB);
-					if(bCallbackB == true && touchComponentB != nullptr)
-						touchComponentB->Touch(entA,physA,colB,colA);
-					bool bReportA = pPhysComponentA->GetCollisionContactReportEnabled();
-					bool bReportB = pPhysComponentB->GetCollisionContactReportEnabled();
-					if(bReportA == true || bReportB == true)
-					{
-						for(int j=0;j<numContacts;j++)
-						{
-							btManifoldPoint &pt = contactManifold->getContactPoint(j);
-							if(pt.getDistance() < 0.f)
-							{
-								const btVector3 &ptA = pt.getPositionWorldOnA();
-								const btVector3 &ptB = pt.getPositionWorldOnB();
-								const btVector3 &normalOnB = pt.m_normalWorldOnB;
-
-								if(bReportA == true && touchComponentA != nullptr)
-								{
-									PhysContact contact {};
-									contact.entA = entA;
-									contact.entB = entB;
-									contact.physA = physA;
-									contact.physB = physB;
-									contact.objA = colA;
-									contact.objB = colB;
-									contact.posA = Vector3(ptA.x(),ptA.y(),ptA.z()) /static_cast<float>(pragma::physics::BtEnvironment::WORLD_SCALE);
-									contact.posB = Vector3(ptB.x(),ptB.y(),ptB.z()) /static_cast<float>(pragma::physics::BtEnvironment::WORLD_SCALE);
-									contact.hitNormal = Vector3(normalOnB.x(),normalOnB.y(),normalOnB.z());
-									touchComponentA->Contact(contact);
-								}
-								if(bReportB == true && touchComponentB != nullptr)
-								{
-									PhysContact contact {};
-									contact.entA = entB;
-									contact.entB = entA;
-									contact.physA = physB;
-									contact.physB = physA;
-									contact.objA = colB;
-									contact.objB = colA;
-									contact.posA = Vector3(ptB.x(),ptB.y(),ptB.z()) /static_cast<float>(pragma::physics::BtEnvironment::WORLD_SCALE);
-									contact.posB = Vector3(ptA.x(),ptA.y(),ptA.z()) /static_cast<float>(pragma::physics::BtEnvironment::WORLD_SCALE);
-									contact.hitNormal = Vector3(normalOnB.x(),normalOnB.y(),normalOnB.z());
-									touchComponentB->Contact(contact);
-								}
-							}
-						}
-					}
-				}
-#endif
 			}
 		}
 	}
+}
+static void onContactEnded(btPersistentManifold* const& manifold)
+{
+	auto *env = get_phys_env(*manifold);
+	if(!env)
+		return;
+	auto &a = *manifold->getBody0();
+	auto &b = *manifold->getBody1();
+	auto *ao = static_cast<pragma::physics::ICollisionObject*>(a.getUserPointer());
+	auto *bo = static_cast<pragma::physics::ICollisionObject*>(b.getUserPointer());
+	if(ao && bo)
+		ao->OnEndTouch(*bo);
 
-	m_contactMap.UpdateContacts(newContacts);
+	auto it = std::find(g_controllerContacts.begin(),g_controllerContacts.end(),manifold);
+	if(it != g_controllerContacts.end())
+		g_controllerContacts.erase(it);
+}
+
+void initContactCallbacks()
+{
+	gContactStartedCallback = &onContactStarted;
+	gContactEndedCallback = &onContactEnded;
+}
+
+void pragma::physics::BtEnvironment::SimulationCallback(double)
+{
+	auto &nw = GetNetworkState();
+	auto *game = nw.GetGameState();
+	for(auto *manifold : g_controllerContacts)
+	{
+		auto *a = manifold->getBody0();
+		auto *b = manifold->getBody1();
+		update_physics_contact_controller_info(game,0,a,b,manifold);
+		update_physics_contact_controller_info(game,1,b,a,manifold);
+	}
 }
 
 util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment::CreateCapsuleController(
@@ -1510,66 +1480,4 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 	auto *world = GetWorld();
 	AddAction(controller.get());
 	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,std::dynamic_pointer_cast<BtConvexShape>(shape),util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller),halfExtents,IController::ShapeType::Capsule));
-}
-
-////////////////
-
-void pragma::physics::ContactMap::UpdateContacts(const CollisionContactList &newContacts)
-{
-	for(auto it=m_contacts.begin();it!=m_contacts.end();)
-	{
-		auto it2 = newContacts.find(*it);
-		if(it2 == newContacts.end())
-		{
-			it = ClearContact(it);
-			continue;
-		}
-		++it;
-	}
-}
-void pragma::physics::ContactMap::AddContact(const btCollisionObject &a,const btCollisionObject &b)
-{
-	auto pair = std::make_pair(&a,&b);
-	auto it = m_contacts.find(pair);
-	if(it != m_contacts.end())
-		return;
-	m_contacts.insert(pair);
-	auto *ao = static_cast<pragma::physics::ICollisionObject*>(a.getUserPointer());
-	auto *bo = static_cast<pragma::physics::ICollisionObject*>(b.getUserPointer());
-	if(ao && bo)
-		ao->OnStartTouch(*bo);
-	AddContact(b,a);
-}
-void pragma::physics::ContactMap::RemoveContacts(const btCollisionObject &o)
-{
-	// TODO: This isn't very efficient...
-	for(auto it=m_contacts.begin();it!=m_contacts.end();)
-	{
-		if(it->first == &o || it->second == &o)
-			it = ClearContact(it);
-		else
-			++it;
-	}
-}
-pragma::physics::CollisionContactList::iterator pragma::physics::ContactMap::ClearContact(CollisionContactList::iterator it)
-{
-	auto *ao = static_cast<pragma::physics::ICollisionObject*>(it->first->getUserPointer());
-	auto *bo = static_cast<pragma::physics::ICollisionObject*>(it->second->getUserPointer());
-	if(ao && bo)
-		ao->OnEndTouch(*bo);
-	return m_contacts.erase(it);
-}
-void pragma::physics::ContactMap::RemoveContact(const btCollisionObject &a,const btCollisionObject &b)
-{
-	auto it = m_contacts.find(std::make_pair(&a,&b));
-	if(it != m_contacts.end())
-		it = ClearContact(it);
-	it = m_contacts.find(std::make_pair(&b,&a));
-	if(it != m_contacts.end())
-		it = ClearContact(it);
-}
-pragma::physics::ContactMap::~ContactMap()
-{
-	for(auto it=m_contacts.begin();it!=m_contacts.end();)
-		it = ClearContact(it);
 }
