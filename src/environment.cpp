@@ -111,13 +111,17 @@ pragma::physics::BtEnvironment::BtEnvironment(NetworkState &state)
 	m_overlapFilterCallback = std::make_unique<PhysOverlapFilterCallback>();
 	m_btOverlappingPairCache->getOverlappingPairCache()->setOverlapFilterCallback(m_overlapFilterCallback.get());
 	m_btSolver = std::make_unique<btSequentialImpulseConstraintSolver>();
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 	m_softBodySolver = std::unique_ptr<btSoftBodySolver>(new btDefaultSoftBodySolver);
-
-#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
 	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_btSolver.get(),m_btCollisionConfiguration.get(),m_softBodySolver.get());
-#else
+#elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS
 	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_btSolver.get(),m_btCollisionConfiguration.get());
+#elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT
+	constexpr uint32_t numSolvers = 4;
+	m_constraintSolverPool = std::unique_ptr<btConstraintSolverPoolMt>(new btConstraintSolverPoolMt{numSolvers});
+	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_constraintSolverPool.get(),m_btSolver.get(),m_btCollisionConfiguration.get());
 #endif
+
 	m_btWorld->setGravity(btVector3(0.f,0.f,0.f));
 	m_btWorld->setInternalTickCallback(&BtEnvironment::SimulationCallback,this);
 	m_btWorld->setForceUpdateAllAabbs(false);
@@ -329,8 +333,15 @@ void pragma::physics::BtEnvironment::SimulationCallback(btDynamicsWorld *world,b
 	auto *env = static_cast<BtEnvironment*>(userData);
 	env->SimulationCallback(timeStep);
 }
-btSoftBodySolver &pragma::physics::BtEnvironment::GetSoftBodySolver() {return *m_softBodySolver;}
-const btSoftBodySolver &pragma::physics::BtEnvironment::GetSoftBodySolver() const {return const_cast<BtEnvironment*>(this)->GetSoftBodySolver();}
+btSoftBodySolver *pragma::physics::BtEnvironment::GetSoftBodySolver()
+{
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
+	return m_softBodySolver.get();
+#else
+	return nullptr;
+#endif
+}
+const btSoftBodySolver *pragma::physics::BtEnvironment::GetSoftBodySolver() const {return const_cast<BtEnvironment*>(this)->GetSoftBodySolver();}
 btWorldType *pragma::physics::BtEnvironment::GetWorld() {return m_btWorld.get();}
 btDefaultCollisionConfiguration *pragma::physics::BtEnvironment::GetBtCollisionConfiguration() {return m_btCollisionConfiguration.get();}
 btCollisionDispatcher *pragma::physics::BtEnvironment::GetBtCollisionDispatcher() {return m_btDispatcher.get();}
@@ -723,7 +734,7 @@ util::TSharedHandle<pragma::physics::ISoftBody> pragma::physics::BtEnvironment::
 	vtx.reserve(static_cast<int32_t>(verts.size()));
 	for(auto &t : verts)
 		vtx.push_back({t.x *pragma::physics::BtEnvironment::WORLD_SCALE,t.y *pragma::physics::BtEnvironment::WORLD_SCALE,t.z *pragma::physics::BtEnvironment::WORLD_SCALE});
-#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 	{
 		std::vector<Vector3d> sbVerts;
 		sbVerts.reserve(vtx.size());

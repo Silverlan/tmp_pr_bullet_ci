@@ -756,7 +756,7 @@ void pragma::physics::BtSoftBody::AppendAnchor(uint32_t nodeId,pragma::physics::
 }
 void pragma::physics::BtSoftBody::DoAddWorldObject()
 {
-#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 	OnAddWorldObject();
 	auto *world = GetBtEnv().GetWorld();
 	world->addSoftBody(&GetInternalObject(),umath::to_integral(m_collisionFilterGroup),umath::to_integral(m_collisionFilterMask));
@@ -901,7 +901,7 @@ float pragma::physics::BtSoftBody::GetMaterialVolumeStiffnessCoefficient(uint32_
 void pragma::physics::BtSoftBody::RemoveWorldObject()
 {
 	OnRemoveWorldObject();
-#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 	auto *world = GetBtEnv().GetWorld();
 	world->removeSoftBody(&GetInternalObject());
 #endif

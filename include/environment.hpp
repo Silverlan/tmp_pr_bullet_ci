@@ -10,17 +10,24 @@
 #include <unordered_set>
 #include <queue>
 #include <sharedutils/util_hash.hpp>
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorldMt.h>
 #ifdef __linux__
 #include <BulletSoftBody/btSoftBody.h>
 #include <BulletSoftBody/btSoftBodySolvers.h>
 #endif
 
-#define PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD 1
+#define PHYS_WORLD_TYPE_DISCRETE_DYNAMICS 0
+#define PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT 1
+#define PHYS_WORLD_SOFT_RIGID_DYNAMICS 2
 
-#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
+#define PHYS_WORLD_TYPE PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT
+
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 using btWorldType = btSoftRigidDynamicsWorld;
-#else
+#elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS
 using btWorldType = btDiscreteDynamicsWorld;
+#elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT
+using btWorldType = btDiscreteDynamicsWorldMt;
 #endif
 
 class PhysOverlapFilterCallback;
@@ -105,8 +112,8 @@ namespace pragma::physics
 		btBroadphaseInterface *GetBtOverlappingPairCache();
 		btSequentialImpulseConstraintSolver *GetBtConstraintSolver();
 		btSoftBodyWorldInfo *GetBtSoftBodyWorldInfo();
-		btSoftBodySolver &GetSoftBodySolver();
-		const btSoftBodySolver &GetSoftBodySolver() const;
+		btSoftBodySolver *GetSoftBodySolver();
+		const btSoftBodySolver *GetSoftBodySolver() const;
 		
 		// For internal or debugging purposes only!
 		util::TSharedHandle<IFixedConstraint> AddFixedConstraint(std::unique_ptr<btFixedConstraint> c);
@@ -129,7 +136,11 @@ namespace pragma::physics
 		std::unique_ptr<PhysOverlapFilterCallback> m_overlapFilterCallback;
 		std::unique_ptr<btSequentialImpulseConstraintSolver> m_btSolver = nullptr;
 		std::unique_ptr<btGhostPairCallback> m_btGhostPairCallback = nullptr;
+#if PHYS_WORLD_TYPE == PHYS_WORLD_SOFT_RIGID_DYNAMICS
 		std::unique_ptr<btSoftBodySolver> m_softBodySolver = nullptr;
+#elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT
+		std::unique_ptr<btConstraintSolverPoolMt> m_constraintSolverPool = nullptr;
+#endif
 		std::unique_ptr<btSoftBodyWorldInfo> m_softBodyWorldInfo;
 		std::unique_ptr<BtDebugDrawer> m_btDebugDrawer = nullptr;
 		uint64_t m_curSimStepIndex = 0;
