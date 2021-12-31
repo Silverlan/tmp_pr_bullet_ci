@@ -113,7 +113,11 @@ pragma::physics::BtEnvironment::BtEnvironment(NetworkState &state)
 	m_btSolver = std::make_unique<btSequentialImpulseConstraintSolver>();
 	m_softBodySolver = std::unique_ptr<btSoftBodySolver>(new btDefaultSoftBodySolver);
 
+#if PHYS_USE_SOFT_RIGID_DYNAMICS_WORLD == 1
 	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_btSolver.get(),m_btCollisionConfiguration.get(),m_softBodySolver.get());
+#else
+	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_btSolver.get(),m_btCollisionConfiguration.get());
+#endif
 	m_btWorld->setGravity(btVector3(0.f,0.f,0.f));
 	m_btWorld->setInternalTickCallback(&BtEnvironment::SimulationCallback,this);
 	m_btWorld->setForceUpdateAllAabbs(false);
@@ -940,6 +944,8 @@ util::TSharedHandle<pragma::physics::ISoftBody> pragma::physics::BtEnvironment::
 	softBody->Initialize();
 	AddSoftBody(softBody);
 	return softBody;*/
+#else
+	return nullptr;
 #endif
 }
 void pragma::physics::BtEnvironment::AddAction(btActionInterface *action) {m_btWorld->addAction(action);}
