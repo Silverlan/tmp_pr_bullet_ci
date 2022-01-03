@@ -44,7 +44,7 @@ static const float PHYS_CONSTRAINT_DEBUG_DRAW_SIZE = 100.f;
 static const auto PHYS_BULLET_BROADPHASE_TYPE = BulletBroadphaseType::AxisSweep3_32Bit;
 
 pragma::physics::BtEnvironment *g_simEnvironment = nullptr;
-
+#pragma optimize("",off)
 class PhysBulletWorld
 	: public btWorldType
 {
@@ -117,8 +117,8 @@ pragma::physics::BtEnvironment::BtEnvironment(NetworkState &state)
 #elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS
 	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_btSolver.get(),m_btCollisionConfiguration.get());
 #elif PHYS_WORLD_TYPE == PHYS_WORLD_TYPE_DISCRETE_DYNAMICS_MT
-	constexpr uint32_t numSolvers = 4;
-	m_constraintSolverPool = std::unique_ptr<btConstraintSolverPoolMt>(new btConstraintSolverPoolMt{numSolvers});
+	auto numSolvers = umath::min(std::thread::hardware_concurrency(),static_cast<uint32_t>(16));
+	m_constraintSolverPool = std::unique_ptr<btConstraintSolverPoolMt>(new btConstraintSolverPoolMt{static_cast<int32_t>(numSolvers)});
 	m_btWorld = std::make_unique<PhysBulletWorld>(m_btDispatcher.get(),m_btOverlappingPairCache.get(),m_constraintSolverPool.get(),m_btSolver.get(),m_btCollisionConfiguration.get());
 #endif
 
@@ -1498,3 +1498,4 @@ util::TSharedHandle<pragma::physics::IController> pragma::physics::BtEnvironment
 	AddAction(controller.get());
 	return util::shared_handle_cast<BtController,IController>(CreateSharedHandle<pragma::physics::BtController>(*this,std::dynamic_pointer_cast<BtConvexShape>(shape),util::shared_handle_cast<BtGhostObject,IGhostObject>(ghostObject),std::move(controller),halfExtents,IController::ShapeType::Capsule));
 }
+#pragma optimize("",on)
