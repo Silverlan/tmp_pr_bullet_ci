@@ -142,7 +142,7 @@ namespace pragma::physics
 		std::unique_ptr<btConstraintSolverPoolMt> m_constraintSolverPool = nullptr;
 #endif
 		std::unique_ptr<btSoftBodyWorldInfo> m_softBodyWorldInfo;
-		std::unique_ptr<BtDebugDrawer> m_btDebugDrawer = nullptr;
+        std::unique_ptr<BtDebugDrawer> m_btDebugDrawer;
 		uint64_t m_curSimStepIndex = 0;
 		std::queue<std::function<void()>> m_events;
 

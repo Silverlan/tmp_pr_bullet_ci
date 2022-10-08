@@ -114,7 +114,7 @@ void pragma::physics::BtConvexHullShape::DoBuild() {}
 //////////////////////////////////
 
 pragma::physics::BtHeightfield::BtHeightfield(IEnvironment &env,const std::shared_ptr<btHeightfieldTerrainShape> &shape,uint32_t width,uint32_t length,btScalar maxHeight,uint8_t upAxis)
-	: IHeightfield{env,width,length,maxHeight,upAxis},BtShape{env,shape},IShape{env}
+    : IHeightfield{env,width,length,static_cast<float>(maxHeight),upAxis},BtShape{env,shape},IShape{env}
 {}
 uint32_t pragma::physics::BtHeightfield::GetWidth() const {return m_width;}
 uint32_t pragma::physics::BtHeightfield::GetLength() const {return m_length;}
