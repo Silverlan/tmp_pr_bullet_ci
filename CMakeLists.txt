@@ -6,6 +6,14 @@ set(PROJ_NAME pr_bullet)
 
 project(${PROJ_NAME} CXX)
 
+
+
+set(DEPENDENCY_BULLET_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/third_party/bullet/src CACHE PATH "Path to include directory." FORCE)
+#search_lib_recursive(DEPENDENCY_BULLET_LIBRARY third_party/bullet/src/${BINARY_PRAGMA_DIR} bullet STATIC)
+search_lib_recursive(DEPENDENCY_BULLET_LINEAR_MATH_LIBRARY third_party/bullet/src/LinearMath/${BINARY_PRAGMA_DIR} LinearMath STATIC)
+search_lib_recursive(DEPENDENCY_BULLET_DYNAMICS_LIBRARY third_party/bullet/src/BulletDynamics/${BINARY_PRAGMA_DIR} BulletDynamics STATIC)
+search_lib_recursive(DEPENDENCY_BULLET_COLLISION_LIBRARY third_party/bullet/src/BulletCollision/${BINARY_PRAGMA_DIR} BulletCollision STATIC)
+search_lib_recursive(DEPENDENCY_BULLET_SOFTBODY_LIBRARY third_party/bullet/src/BulletSoftBody/${BINARY_PRAGMA_DIR} BulletSoftBody STATIC)
 # set(PRECOMPILED_HEADER "stdafx")
 
 add_external_library(bullet_dynamics)
@@ -25,16 +33,11 @@ register_pragma_module(${PROJ_NAME})
 
 #
 
-set(DEPENDENCY_BULLET_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/third_party/bullet/src CACHE PATH "Path to include directory.")
-search_lib_recursive(DEPENDENCY_BULLET_LINEAR_MATH_LIBRARY third_party/bullet/src/LinearMath/${BINARY_PRAGMA_DIR} LinearMath STATIC)
-search_lib_recursive(DEPENDENCY_BULLET_DYNAMICS_LIBRARY third_party/bullet/src/BulletDynamics/${BINARY_PRAGMA_DIR} BulletDynamics STATIC)
-search_lib_recursive(DEPENDENCY_BULLET_COLLISION_LIBRARY third_party/bullet/src/BulletCollision/${BINARY_PRAGMA_DIR} BulletCollision STATIC)
-search_lib_recursive(DEPENDENCY_BULLET_SOFTBODY_LIBRARY third_party/bullet/src/BulletSoftBody/${BINARY_PRAGMA_DIR} BulletSoftBody STATIC)
 
 if(UNIX)
 	resolve_links(DEPENDENCY_BULLET_COLLISION_LIBRARY)
 	resolve_links(DEPENDENCY_BULLET_DYNAMICS_LIBRARY)
-	resolve_links(DEPENDENCY_BULLET_LIBRARY)
+#	resolve_links(DEPENDENCY_BULLET_LIBRARY)
 	resolve_links(DEPENDENCY_BULLET_LINEAR_MATH_LIBRARY)
 	resolve_links(DEPENDENCY_BULLET_SOFTBODY_LIBRARY)
 endif()
