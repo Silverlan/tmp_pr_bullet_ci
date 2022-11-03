@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-include("../CMakeShared.txt")
+include("./CMakeShared.txt")
 
 set(PROJ_NAME pr_bullet)
 
@@ -35,11 +35,12 @@ register_pragma_module(${PROJ_NAME})
 
 
 if(UNIX)
-	resolve_links(DEPENDENCY_BULLET_COLLISION_LIBRARY)
-	resolve_links(DEPENDENCY_BULLET_DYNAMICS_LIBRARY)
+#	resolve_links(DEPENDENCY_BULLET_COLLISION_LIBRARY)
+#	resolve_links(DEPENDENCY_BULLET_DYNAMICS_LIBRARY)
 #	resolve_links(DEPENDENCY_BULLET_LIBRARY)
-	resolve_links(DEPENDENCY_BULLET_LINEAR_MATH_LIBRARY)
-	resolve_links(DEPENDENCY_BULLET_SOFTBODY_LIBRARY)
+#	resolve_links(DEPENDENCY_BULLET_LINEAR_MATH_LIBRARY)
+#	resolve_links(DEPENDENCY_BULLET_SOFTBODY_LIBRARY)
+	SET(CMAKE_CXX_FLAGS "-fPIC ${CMAKE_CXX_FLAGS}")
 endif()
 
 # bullet
@@ -50,7 +51,8 @@ set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL OFF FORCE)
 set(BUILD_UNIT_TESTS OFF CACHE BOOL OFF FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL OFF FORCE)
 set(CMAKE_RELWITHDEBINFO_POSTFIX "" CACHE STRING "" FORCE)
-register_third_party_library_custom(bullet third_party)
+# register_third_party_library_custom(bullet third_party)
+add_subdirectory(third_party/bullet)
 set(BUILD_SHARED_LIBS ON CACHE BOOL ON FORCE)
 set_target_properties(App_obj2sdf PROPERTIES FOLDER modules/physics/bullet/bullet)
 set_target_properties(Bullet2FileLoader PROPERTIES FOLDER modules/physics/bullet/bullet)
