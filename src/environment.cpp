@@ -660,7 +660,7 @@ struct Vector3d
 static std::unique_ptr<btSoftBody> createSoftBody(const PhysSoftBodyInfo &sbInfo,btSoftRigidDynamicsWorld *world,btSoftBodyWorldInfo *info,float mass,std::vector<Vector3d> &verts,std::vector<int32_t> indices) {
 	if(mass == 0.f)
 	{
-		Con::cwar<<"WARNING: Attempted to create soft-body object with mass of 0! Using mass of 1 instead..."<<Con::endl;
+		Con::cwar<<"Attempted to create soft-body object with mass of 0! Using mass of 1 instead..."<<Con::endl;
 		mass = 1.f;
 	}
 	auto cloth = std::unique_ptr<btSoftBody>{btSoftBodyHelpers::CreateFromTriMesh(*info,reinterpret_cast<btScalar*>(verts.data()),indices.data(),indices.size() /3,true)};

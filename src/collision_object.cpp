@@ -739,7 +739,7 @@ void pragma::physics::BtSoftBody::AppendAnchor(uint32_t nodeId,pragma::physics::
 	assert(nodeId < GetInternalObject().m_nodes.size());
 	if(nodeId >= GetInternalObject().m_nodes.size())
 	{
-		Con::cwar<<"WARNING: Attempted to add soft-body anchor for invalid node "<<nodeId<<"! Skipping..."<<Con::endl;
+		Con::cwar<<"Attempted to add soft-body anchor for invalid node "<<nodeId<<"! Skipping..."<<Con::endl;
 		return;
 	}
 	GetInternalObject().appendAnchor(nodeId,&dynamic_cast<BtRigidBody&>(body).GetInternalObject(),uvec::create_bt(localPivot) *BtEnvironment::WORLD_SCALE,bDisableCollision,influence);
@@ -749,7 +749,7 @@ void pragma::physics::BtSoftBody::AppendAnchor(uint32_t nodeId,pragma::physics::
 	assert(nodeId < GetInternalObject().m_nodes.size());
 	if(nodeId >= GetInternalObject().m_nodes.size())
 	{
-		Con::cwar<<"WARNING: Attempted to add soft-body anchor for invalid node "<<nodeId<<"! Skipping..."<<Con::endl;
+		Con::cwar<<"Attempted to add soft-body anchor for invalid node "<<nodeId<<"! Skipping..."<<Con::endl;
 		return;
 	}
 	GetInternalObject().appendAnchor(nodeId,&dynamic_cast<BtRigidBody&>(body).GetInternalObject(),bDisableCollision,influence);
@@ -1007,7 +1007,7 @@ void pragma::physics::BtSoftBody::SetSubMesh(const ModelSubMesh &subMesh,const s
 			continue;
 		if(localIdx >= m_localVertexIndicesToMeshVertexIndices.size())
 		{
-			Con::cwar<<"WARNING: Invalid soft-body node index "<<localIdx<<"! Skipping..."<<Con::endl;
+			Con::cwar<<"Invalid soft-body node index "<<localIdx<<"! Skipping..."<<Con::endl;
 			continue;
 		}
 		m_localVertexIndicesToMeshVertexIndices.at(localIdx) = i;

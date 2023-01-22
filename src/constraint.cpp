@@ -229,11 +229,16 @@ void pragma::physics::BtConeTwistConstraint::SetLimit(const Vector3 &lowerLimits
 }
 void pragma::physics::BtConeTwistConstraint::SetLimit(float swingSpan1,float swingSpan2,float twistSpan)
 {
-	// TODO
+	GetInternalObject().setLimit(
+		swingSpan1,swingSpan2,twistSpan
+		// ,softness,biasFactor,relaxationFactor
+	);
 }
 void pragma::physics::BtConeTwistConstraint::GetLimit(float &outSwingSpan1,float &outSwingSpan2,float &outTwistSpan)
 {
-	// TODO
+	outSwingSpan1 = GetInternalObject().getSwingSpan1();
+	outSwingSpan2 = GetInternalObject().getSwingSpan2();
+	outTwistSpan = GetInternalObject().getTwistSpan();
 }
 /*void pragma::physics::BtConeTwistConstraint::SetLimit(AxisType type,pragma::Axis axis,double lo,double hi)
 {
