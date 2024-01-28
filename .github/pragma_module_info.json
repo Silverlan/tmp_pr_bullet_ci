@@ -1,0 +1,6 @@
+{
+    "name": "Bullet Physics",
+    "module_name": "pr_bullet",
+    "install_directory": "modules/physics_engines/bullet/",
+    "release_directory": "modules/physics_engines/bullet/"
+}

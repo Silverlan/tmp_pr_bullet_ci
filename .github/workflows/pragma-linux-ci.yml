@@ -4,6 +4,8 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  repository_dispatch:
+    types: [init]
 
 concurrency:
   group: environment-lin-${{ github.ref }}
@@ -12,6 +14,7 @@ concurrency:
 jobs:
   build:
     name: Build - ${{ matrix.config.os }}
+    if: github.repository != 'Silverlan/pr_module_template'
     runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
@@ -27,31 +30,26 @@ jobs:
             generators: "Unix Makefiles"
             build_dir: 'build'
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-          
-      - name: Setup Pragma Module
-        id: pragma-cmake-defs
-        uses: Silverlan/common_actions/setup_pragma_module@main
-        with:
-          cc_version: ${{ matrix.cc }}
-          cxx_version: ${{ matrix.cxx }}
+      - name: Get Module Info
+        id: module-info
+        uses: Silverlan/pr_module_template/github_actions/get_module_info@main
 
-      - name: Build
-        shell: bash
-        run: |
-          cmake -G "Unix Makefiles" \
-            ${{ steps.pragma-cmake-defs.outputs.cmake_defs }} \
-            -DDEPENDENCY_BULLET_INCLUDE="./third_party/bullet/src/"
-          cmake --build ./ --verbose --target pr_bullet
+      - name: Build Module
+        id: build-module
+        uses: Silverlan/pragma/github_actions/build_generic_module@master
+        with:
+          module: '${{ steps.module-info.outputs.module_name }}'
 
       - name: Create Release Files
         shell: bash
         run: |
-          mkdir release
-          mkdir release/modules
-          rsync --mkpath ./libpr_bullet.so release/modules/physics_engines/bullet/
+          if [ -n "${{ steps.module-info.outputs.release_directory }}" ]; then
+            mkdir -p "release/${{ steps.module-info.outputs.release_directory }}"
+            cp -a "${{ steps.build-module.outputs.install-dir }}/${{ steps.module-info.outputs.release_directory }}." "release/${{ steps.module-info.outputs.release_directory }}"
+          else
+            mkdir -p "release/${{ steps.module-info.outputs.install_directory }}"
+            cp "${{ steps.build-module.outputs.install-dir }}/${{ steps.module-info.outputs.install_directory }}lib${{ steps.module-info.outputs.module_name }}.so" "release/${{ steps.module-info.outputs.install_directory }}"
+          fi
           
       - name: Release Binaries
         uses: Silverlan/common_actions/release_nightly_binaries@main
