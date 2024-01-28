@@ -96,7 +96,7 @@ endif()
 
 add_dependencies(BulletCollision LinearMath)
 add_dependencies(BulletDynamics BulletCollision)
-add_dependencies(pr_bullet BulletDynamics BulletSoftBody)
+add_dependencies(pr_bullet BulletDynamics BulletSoftBody sharedutils)
 
 #
 
