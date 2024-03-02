@@ -6,7 +6,7 @@ set(PROJ_NAME pr_bullet)
 
 project(${PROJ_NAME} CXX)
 
-
+set(PKGCONFIG_INSTALL_PREFIX ".")
 
 set(DEPENDENCY_BULLET_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/third_party/bullet/src CACHE PATH "Path to include directory." FORCE)
 #search_lib_recursive(DEPENDENCY_BULLET_LIBRARY third_party/bullet/src/${BINARY_PRAGMA_DIR} bullet STATIC)
