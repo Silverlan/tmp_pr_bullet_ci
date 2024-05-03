@@ -6,7 +6,7 @@ set(PROJ_NAME pr_bullet)
 
 project(${PROJ_NAME} CXX)
 
-
+set(PKGCONFIG_INSTALL_PREFIX ".")
 
 set(DEPENDENCY_BULLET_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/third_party/bullet/src CACHE PATH "Path to include directory." FORCE)
 #search_lib_recursive(DEPENDENCY_BULLET_LIBRARY third_party/bullet/src/${BINARY_PRAGMA_DIR} bullet STATIC)
@@ -51,6 +51,7 @@ set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL OFF FORCE)
 set(BUILD_UNIT_TESTS OFF CACHE BOOL OFF FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL OFF FORCE)
 set(CMAKE_RELWITHDEBINFO_POSTFIX "" CACHE STRING "" FORCE)
+SET(PKGCONFIG_INSTALL_PREFIX "lib${LIB_SUFFIX}/pkgconfig/" CACHE STRING "Base directory for pkgconfig files" FORCE)
 # register_third_party_library_custom(bullet third_party)
 add_subdirectory(third_party/bullet)
 set(BUILD_SHARED_LIBS ON CACHE BOOL ON FORCE)
