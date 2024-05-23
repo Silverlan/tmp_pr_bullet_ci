@@ -28,6 +28,7 @@
 #include <pragma/entities/baseentity.h>
 #include <pragma/audio/alsound.h>
 #include <pragma/audio/alsound_type.h>
+#include <sharedutils/util_pragma.hpp>
 #include <unordered_set>
 
 enum class BulletBroadphaseType : uint32_t

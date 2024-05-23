@@ -10,6 +10,9 @@
 #include <pragma/networkstate/networkstate.h>
 #include <pragma/game/game.h>
 #include <pragma/model/modelmesh.h>
+
+import udm;
+
 #pragma optimize("",off)
 SimpleMotionState::SimpleMotionState(pragma::physics::BtCollisionObject &o)
 	: collisionObject{o}
@@ -20,6 +23,7 @@ void SimpleMotionState::setWorldTransform(const btTransform &worldTrans) {collis
 pragma::physics::BtCollisionObject::BtCollisionObject(IEnvironment &env,std::unique_ptr<btCollisionObject> o,IShape &shape)
 	: ICollisionObject{env,shape},m_collisionObject{std::move(o)}
 {
+	udm::Data::Load("");
 	GetInternalObject().setUserPointer(static_cast<ICollisionObject*>(this));
 	ApplyCollisionShape(&shape);
 }
