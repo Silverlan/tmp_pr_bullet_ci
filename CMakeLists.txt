@@ -49,6 +49,7 @@ set(BT_TARGETS
 	GIMPACTUtils
 	HACD
 	LinearMath
+	BulletRoboticsGUI
 )
 
 if(UNIX)
