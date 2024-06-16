@@ -1,0 +1,3 @@
+pr_install_create_directory(modules/physics_engines)
+pr_install_create_directory(modules/physics_engines/bullet)
+pr_install_targets(pr_bullet INSTALL_DIR "modules/physics_engines/bullet/")
